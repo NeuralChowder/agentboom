@@ -140,7 +140,7 @@ def _resolve_tz(tz_name: str):
 def next_cron_time(
     expr: str,
     after: Optional[datetime] = None,
-    tz_name: str = "Europe/Lisbon",
+    tz_name: str = "UTC",
 ) -> Optional[datetime]:
     """Return the first datetime strictly after ``after`` that matches ``expr``.
 

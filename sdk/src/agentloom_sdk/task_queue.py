@@ -62,6 +62,10 @@ class AgentTaskQueue:
         log.info("Task queue started (max_concurrent=%d, max_queue=%d)",
                  self.max_concurrent, self.max_queue)
 
+    def running(self) -> bool:
+        """True when the queue worker is up (callers may serialize through it)."""
+        return self._worker_task is not None and not self._worker_task.done()
+
     async def stop(self):
         if self._worker_task:
             # Drain queued tasks before cancelling so work is not silently
