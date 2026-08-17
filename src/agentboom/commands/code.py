@@ -58,13 +58,6 @@ def run_miniapp(args) -> dict:
         "Implement it now, then summarize what you built and how to use it."
     )
 
-    qwen = shutil.which("qwen")
-    if not qwen:
-        raise CodeError(
-            "qwen (Qwen Code) not found on PATH. Install it with "
-            "`npm install -g @qwen-code/qwen-code`, then re-run."
-        )
-
     result = {
         "ok": True,
         "kind": "miniapp",
@@ -77,6 +70,13 @@ def run_miniapp(args) -> dict:
         result["mission"] = mission
         result["note"] = "dry-run: mission prompt prepared, qwen not launched"
         return result
+
+    qwen = shutil.which("qwen")
+    if not qwen:
+        raise CodeError(
+            "qwen (Qwen Code) not found on PATH. Install it with "
+            "`npm install -g @qwen-code/qwen-code`, then re-run."
+        )
 
     os.chdir(agent_dir)
     os.execvp(qwen, [qwen, "--prompt-interactive", mission])
@@ -106,13 +106,6 @@ def run_skill(args) -> dict:
         "Validate with the skill-creator validator before finishing."
     )
 
-    qwen = shutil.which("qwen")
-    if not qwen:
-        raise CodeError(
-            "qwen (Qwen Code) not found on PATH. Install it with "
-            "`npm install -g @qwen-code/qwen-code`, then re-run."
-        )
-
     result = {"ok": True, "kind": "skill", "name": name,
               "agent_dir": str(agent_dir), "scaffolded": scaffolded,
               "launched": False}
@@ -120,6 +113,13 @@ def run_skill(args) -> dict:
         result["mission"] = mission
         result["note"] = "dry-run: mission prompt prepared, qwen not launched"
         return result
+
+    qwen = shutil.which("qwen")
+    if not qwen:
+        raise CodeError(
+            "qwen (Qwen Code) not found on PATH. Install it with "
+            "`npm install -g @qwen-code/qwen-code`, then re-run."
+        )
 
     os.chdir(agent_dir)
     os.execvp(qwen, [qwen, "--prompt-interactive", mission])
