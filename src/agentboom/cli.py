@@ -35,6 +35,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentboom",
         description="Scaffold, maintain, and upgrade agent projects from a shared base.",
+        epilog=(
+            "examples:\n"
+            "  agentboom init my-agent --description \"watches the homelab\"\n"
+            "  agentboom code miniapp backups \"alert when backups fail\"\n"
+            "  agentboom add package vault\n"
+            "  agentboom fleet            # health of every agent\n"
+            "  agentboom upgrade --apply  # sync the base\n"
+            "\n"
+            "every command accepts --json for machine-readable output."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"agentboom {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -278,6 +289,11 @@ def _print_human(command: str, result: dict) -> None:
 
 def main(argv=None) -> int:
     parser = build_parser()
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        parser.print_help()
+        return 2
     args = parser.parse_args(argv)
 
     try:

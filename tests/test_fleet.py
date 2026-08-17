@@ -148,3 +148,22 @@ class CodeCommandTests(unittest.TestCase):
         with self.assertRaises(code_cmd.CodeError):
             code_cmd.run_miniapp(argparse.Namespace(
                 name="x", prompt="", description="", dir=str(plain), dry_run=True))
+
+
+class CliHelpTests(unittest.TestCase):
+    def test_no_args_prints_help_with_examples_and_exits_2(self):
+        import contextlib
+        import io
+        from agentboom import cli
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = cli.main([])
+        self.assertEqual(code, 2)
+        out = buf.getvalue()
+        self.assertIn("examples:", out)
+        self.assertIn("agentboom init", out)
+
+    def test_version_flag(self):
+        with self.assertRaises(SystemExit):
+            from agentboom import cli
+            cli.main(["--version"])
