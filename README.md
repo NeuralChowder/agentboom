@@ -34,7 +34,7 @@ Two distributables, one version:
 ```bash
 pipx install .            # the agentboom command
 # or straight from a GitHub release:
-pipx install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.2.0/agentboom-0.2.0-py3-none-any.whl"
+pipx install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
 ```
 
 ## Quickstart
@@ -56,8 +56,10 @@ docker compose logs -f qwen-agent
 | `agentboom validate [dir]` | structural health checks (files, manifests, cron, env coverage, drift) |
 | `agentboom upgrade [dir]` | check/apply sync of managed base files (`--apply`, `--force`) |
 | `agentboom add skill\|miniapp <name>` | scaffold a capability inside an agent |
+| `agentboom code miniapp\|skill <name> ["prompt"]` | scaffold then open `qwen` with a mission to build it |
 | `agentboom add package <name>` | install an optional package (see below) |
-| `agentboom packages [dir]` | list available/installed packages |
+| `agentboom packages [dir]` | list available/installed packages across registries |
+| `agentboom registries [list\|add\|remove]` | package sources: builtin + any git repo or dir |
 | `agentboom skills [dir]` / `miniapps [dir]` | list an agent's capabilities |
 | `agentboom list [parent]` | discover agentboom agents under a directory |
 | `agentboom adopt [dir]` | bring an existing agent under base management (byte-match, non-destructive) |
@@ -132,7 +134,7 @@ reaping, exponential backoff. See `docs/anatomy.md`.
 ## Development
 
 ```bash
-python3 tests/run_tests.py      # 40 tests, stdlib only
+python3 tests/run_tests.py      # stdlib-only test suite
 python3 bin/agentboom selfcheck # end-to-end template QA
 ```
 

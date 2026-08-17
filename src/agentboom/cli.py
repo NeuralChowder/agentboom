@@ -12,6 +12,7 @@ import sys
 
 from agentboom import __version__
 from agentboom import fleet as fleet_reg
+from agentboom import registries as registries_mod
 from agentboom.commands import add as add_cmd
 from agentboom.commands import adopt as adopt_cmd
 from agentboom import runtimes
@@ -22,6 +23,7 @@ from agentboom.commands import doctor as doctor_cmd
 from agentboom.commands import init as init_cmd
 from agentboom.commands import listcmd
 from agentboom.commands import packages as packages_cmd
+from agentboom.commands import registrycmd
 from agentboom.commands import selfcheck as selfcheck_cmd
 from agentboom.commands import upgrade as upgrade_cmd
 from agentboom.commands import validate as validate_cmd
@@ -89,6 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
                             help="install an optional package into an agent")
     sp.add_argument("name", help="package name (see `agentboom packages`)")
     sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
+    sp.add_argument("--refresh", action="store_true",
+                    help="re-fetch remote registries before resolving")
 
     p = sub.add_parser("code", parents=[common],
                        help="let a qwen agent build a mini-app or skill for you")
@@ -115,6 +119,22 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("packages", parents=[common],
                        help="list available packages and those installed in an agent")
     p.add_argument("dir", nargs="?", default=None, help="agent directory (optional)")
+    p.add_argument("--refresh", action="store_true",
+                   help="re-fetch remote registries first")
+
+    p = sub.add_parser("registries", parents=[common],
+                       help="package sources: builtin plus any repo/dir you add")
+    reg_sub = p.add_subparsers(dest="registries_action")
+    reg_sub.add_parser("list", parents=[common], help="show configured registries")
+    sp = reg_sub.add_parser("add", parents=[common],
+                            help="add a registry (git URL or local packages dir)")
+    sp.add_argument("name", help="short registry name")
+    sp.add_argument("ref", help="https:// git URL or a local directory path")
+    sp.add_argument("--subdir", default="packages",
+                    help="directory inside the repo holding packages (default: packages)")
+    sp.add_argument("--branch", default="main", help="branch to fetch (default: main)")
+    sp = reg_sub.add_parser("remove", parents=[common], help="remove a registry")
+    sp.add_argument("name", help="registry name")
 
     p = sub.add_parser("adopt", parents=[common],
                        help="bring an existing agent under base management")
@@ -248,7 +268,14 @@ def _print_human(command: str, result: dict) -> None:
     elif command == "packages":
         print("Available packages:")
         for pkg in result["available"]:
-            print(f"  {pkg['name']} — {pkg['description']}")
+            icon = f"{pkg['icon']} " if pkg.get("icon") else ""
+            kind = " [connector]" if pkg.get("kind") == "connector" else ""
+            src = "" if pkg.get("source") == "builtin" else f" ({pkg['source']})"
+            req = (f" — requires {', '.join(pkg['requires'])}"
+                   if pkg.get("requires") else "")
+            print(f"  {icon}{pkg['name']}{kind}{src} — {pkg['description']}{req}")
+        for reg in result.get("unreachable_registries", []):
+            print(f"  [warn] registry '{reg['registry']}' unreachable: {reg['error']}")
         if result["agent_dir"]:
             installed = result["installed"]
             if installed:
@@ -257,6 +284,18 @@ def _print_human(command: str, result: dict) -> None:
                     print(f"  {name} (since {installed[name]['installed_at']})")
             else:
                 print(f"None installed in {result['agent_dir']}")
+    elif command == "registries":
+        if "added" in result:
+            entry = result["added"]
+            print(f"Added registry '{entry['name']}' -> "
+                  f"{entry.get('url') or entry.get('path')}")
+        elif "removed" in result:
+            print(f"Removed registry '{result['removed']}'")
+        else:
+            print("Registries:")
+            for reg in result["registries"]:
+                print(f"  {reg['name']:12} {reg['source_ref']}")
+            print("Add more: agentboom registries add <name> <git-url-or-dir>")
     elif command == "adopt":
         print(f"Adopted '{result['name']}' at {result['agent_dir']}")
         print(f"  managed (byte-identical to base): {len(result['managed_matched'])}")
@@ -335,6 +374,14 @@ def main(argv=None) -> int:
                 result = packages_cmd.run_add_package(args)
         elif args.command == "packages":
             result = packages_cmd.run_packages(args)
+        elif args.command == "registries":
+            action = getattr(args, "registries_action", None)
+            if action == "add":
+                result = registrycmd.run_add(args)
+            elif action == "remove":
+                result = registrycmd.run_remove(args)
+            else:
+                result = registrycmd.run_list(args)
         elif args.command == "adopt":
             result = adopt_cmd.run(args)
         elif args.command == "fleet":
@@ -370,7 +417,8 @@ def main(argv=None) -> int:
             return 2
     except (init_cmd.InitError, upgrade_cmd.UpgradeError, add_cmd.AddError,
             code_cmd.CodeError, runtimes.RuntimeError_,
-            packages_cmd.PackageError, adopt_cmd.AdoptError,
+            packages_cmd.PackageError, registrycmd.RegistriesError,
+            registries_mod.RegistryError, adopt_cmd.AdoptError,
             fleetcmd.FleetError, console_cmd.ConsoleError,
             TemplateError, FileNotFoundError) as exc:
         if args.json:

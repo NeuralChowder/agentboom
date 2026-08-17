@@ -28,10 +28,11 @@ from agentboom_sdk.services.scheduler import scheduler
 
 ## Install
 
-Released wheels are attached to agentboom's GitHub releases:
+Released wheels are attached to agentboom's GitHub releases — match the
+version to the agentboom release you use (one base, one version):
 
 ```
-agentboom_sdk @ https://github.com/NeuralChowder/agentboom/releases/download/v0.6.0/agentboom_sdk-0.6.0-py3-none-any.whl
+agentboom_sdk @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom_sdk-0.7.0-py3-none-any.whl
 ```
 
 ## Versioning

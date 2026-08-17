@@ -1,18 +1,26 @@
 """`agentboom add package` / `agentboom packages` — optional agent add-ons.
 
 A package is a bundle of files placed into an existing agent (mini-apps,
-skills, docs, migrations) plus requirement lines, .env.example lines, and
-post-install instructions. Packages never overwrite existing files.
+skills, docs, migrations, connector libraries) plus requirement lines,
+.env.example lines, and post-install instructions. Packages never
+overwrite existing files.
+
+Packages are discovered across registries (builtin + any configured with
+`agentboom registries add`); a package's `requires` list is enforced so
+nobody installs a capability whose dependencies are missing.
 """
 import json
 from pathlib import Path
 
+from agentboom import registries as registries_mod
 from agentboom.registry import load_registry, save_registry, now_iso
 from agentboom.render import render_text
 
-from . import templates_root
+from . import templates_root  # noqa: F401  (kept for import compatibility)
 
-PACKAGE_META_NAME = ".agentboom-package.json"
+# Canonical home of these is agentboom.registries — re-exported here so
+# existing imports keep working.
+PACKAGE_META_NAME = registries_mod.PACKAGE_META_NAME
 QWEN_HOME_SRC = "qwen-home"
 QWEN_HOME_DEST = ".qwen-docker"
 
@@ -22,7 +30,7 @@ class PackageError(RuntimeError):
 
 
 def packages_root() -> Path:
-    return templates_root() / "packages"
+    return registries_mod.packages_root()
 
 
 def available_packages() -> list:
@@ -55,17 +63,39 @@ def _agent_dir(args) -> Path:
     return agent_dir
 
 
+def _resolve_package(name: str, refresh: bool = False) -> tuple:
+    """Find a package across all registries. Returns (pkg_dir, meta, source)."""
+    for pkg in registries_mod.discover_packages(refresh=refresh):
+        if pkg["name"] == name:
+            if pkg.get("error"):
+                raise PackageError(f"Registry '{pkg['source']}' is unreachable: {pkg['error']}")
+            pkg_dir = Path(pkg["path"])
+            meta = json.loads((pkg_dir / PACKAGE_META_NAME).read_text(encoding="utf-8"))
+            return pkg_dir, meta, pkg["source"]
+    known = ", ".join(p["name"] for p in registries_mod.discover_packages(refresh=refresh)
+                      if not p.get("error")) or "(none)"
+    raise PackageError(f"Unknown package '{name}'. Available: {known}")
+
+
 def run_add_package(args) -> dict:
     name = args.name.strip().lower()
-    pkg_dir = packages_root() / name
-    meta_path = pkg_dir / PACKAGE_META_NAME
-    if not meta_path.is_file():
-        known = ", ".join(p["name"] for p in available_packages()) or "(none)"
-        raise PackageError(f"Unknown package '{name}'. Available: {known}")
+    refresh = getattr(args, "refresh", False)
+    pkg_dir, meta, source = _resolve_package(name, refresh=refresh)
 
     agent_dir = _agent_dir(args)
     registry = load_registry(agent_dir)
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+
+    # Dependencies first: a package whose `requires` are not installed
+    # would ship mini-apps that cannot work — refuse with the exact list.
+    installed = registry.get("packages", {})
+    missing = [r for r in meta.get("requires", []) if r not in installed]
+    if missing:
+        raise PackageError(
+            f"Package '{name}' requires: {', '.join(missing)} — "
+            f"install {'it' if len(missing) == 1 else 'them'} first: "
+            + " && ".join(f"agentboom add package {m}" for m in missing)
+        )
+
     variables = dict(registry.get("vars", {}))
 
     created, skipped = [], []
@@ -132,6 +162,9 @@ def run_add_package(args) -> dict:
     registry.setdefault("packages", {})[name] = {
         "installed_at": now_iso(),
         "files": created,
+        "kind": meta.get("kind", "addon"),
+        "source": source,
+        "requires": meta.get("requires", []),
     }
     save_registry(agent_dir, registry)
 
@@ -154,9 +187,21 @@ def run_packages(args) -> dict:
         registry = load_registry(agent_dir)
         if registry:
             installed = registry.get("packages", {})
+    refresh = getattr(args, "refresh", False)
+    discovered = registries_mod.discover_packages(refresh=refresh)
+    available = [
+        {k: p[k] for k in ("name", "description", "kind", "icon", "requires", "source")
+         if k in p}
+        for p in discovered if not p.get("error")
+    ]
+    unreachable = [
+        {"registry": p["source"], "error": p["error"]}
+        for p in discovered if p.get("error")
+    ]
     return {
         "ok": True,
-        "available": available_packages(),
+        "available": available,
+        "unreachable_registries": unreachable,
         "installed": installed,
         "agent_dir": str(agent_dir) if agent_dir else None,
     }

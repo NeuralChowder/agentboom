@@ -87,7 +87,10 @@ non-kebab-case names.
 Install an optional package into an agent: copies files (never
 overwriting), appends requirement lines to `platform/requirements.txt`
 and env lines to `.env.example` (both idempotent), records the install in
-`.agentboom.json`, and prints post-install steps.
+`.agentboom.json`, and prints post-install steps. Packages are resolved
+across all registries (`builtin` first); `--refresh` re-fetches remote
+registries first. A package's `requires` list is enforced — installing
+one whose dependencies are missing fails with the exact commands to run.
 
 ```json
 {"ok": true, "package": "vault", "agent_dir": "...",
@@ -129,13 +132,44 @@ containers, so `code` just works there.
 
 ## `agentboom packages [dir]`
 
-List available packages, and (with an agent dir) installed ones.
+List available packages across every registry, and (with an agent dir)
+installed ones. Each entry carries `kind` (`addon` or `connector` — a
+connector also installs an importable client under
+`platform/connectors/<name>/` for mini-apps to use), its `source`
+registry, and any `requires`. `--refresh` re-fetches remote registries.
 
 ```json
 {"ok": true,
- "available": [{"name": "telegram", "description": "..."}],
+ "available": [{"name": "telegram", "description": "...",
+                "kind": "addon", "icon": "", "requires": [],
+                "source": "builtin"}],
+ "unreachable_registries": [],
  "installed": {"vault": {"installed_at": "...", "files": ["..."]}},
  "agent_dir": "..."}
+```
+
+## `agentboom registries [list|add|remove]`
+
+Package sources. `builtin` ships with agentboom; add any git repository
+or local directory as an extra registry and its packages become
+installable exactly like builtin ones. Packages live in a `packages/`
+directory (configurable with `--subdir`), one folder per package with an
+`.agentboom-package.json` meta file. Remote repos are fetched (cached an
+hour), never executed; only add registries you trust.
+
+```bash
+agentboom registries                                   # list sources
+agentboom registries add community https://github.com/org/agent-packages
+agentboom registries add local /path/to/my-packages-repo
+agentboom registries remove community
+```
+
+```json
+{"ok": true, "registries": [
+  {"name": "builtin", "source": "builtin", "source_ref": "(bundled)"},
+  {"name": "community", "source": "url",
+   "source_ref": "https://github.com/org/agent-packages",
+   "subdir": "packages", "branch": "main"}]}
 ```
 
 ## `agentboom adopt [dir]`
