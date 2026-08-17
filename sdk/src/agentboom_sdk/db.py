@@ -74,12 +74,31 @@ def _use_postgres() -> bool:
 _DOLLAR_RE = re.compile(r"\$(\d+)")
 
 
+def _count_question_marks(query: str) -> int:
+    """Count `?` placeholders, ignoring `?` inside single-quoted literals."""
+    count, in_str, i = 0, False, 0
+    while i < len(query):
+        ch = query[i]
+        if in_str:
+            if ch == "'":
+                if i + 1 < len(query) and query[i + 1] == "'":
+                    i += 1  # '' escape stays inside the literal
+                else:
+                    in_str = False
+        elif ch == "'":
+            in_str = True
+        elif ch == "?":
+            count += 1
+        i += 1
+    return count
+
+
 def _placeholder_count(query: str) -> int:
     """Highest positional placeholder index used (0 if none), either style."""
     if "$" in query:
         found = _DOLLAR_RE.findall(query)
         return max((int(n) for n in found), default=0)
-    return query.count("?")
+    return _count_question_marks(query)
 
 
 # `$1::text[]`, `= ANY($1)`, `ANY($1::uuid[])` — places where the single
@@ -124,16 +143,23 @@ def _unwrap(query: str, args: tuple) -> tuple:
 
     if n_placeholders <= 1 and _expects_array(query):
         return args
-    if n_placeholders <= 1 and len(params) != 1:
-        return args
     if n_placeholders == len(params):
         return tuple(params)
-    return tuple(params)
+    if n_placeholders <= 1 and len(params) == 1:
+        return tuple(params)
+    if n_placeholders > 1:
+        return tuple(params)  # count mismatch — let the driver raise it
+    return args
 
 
 def _to_sqlite_placeholders(query: str, args: tuple) -> tuple:
     """Rewrite `$n` placeholders to `?`, reordering args accordingly."""
-    if "$" not in query or "?" in query:
+    if "$" in query and "?" in query:
+        # Used to pass through silently and die deep in the driver.
+        raise ValueError(
+            "Mixing $n and ? placeholders in one query is not supported"
+        )
+    if "$" not in query:
         return query, args
     order: List[int] = []
 
@@ -152,16 +178,36 @@ def _to_sqlite_placeholders(query: str, args: tuple) -> tuple:
 
 
 def _to_postgres_placeholders(query: str, args: tuple) -> tuple:
-    """Number sequential `?` placeholders as `$1..$n` for asyncpg."""
+    """Number sequential `?` placeholders as `$1..$n` for asyncpg.
+
+    `?` inside single-quoted literals is left alone (naive rewriting once
+    corrupted queries containing quoted question marks). Note the jsonb
+    operators `?` / `?|` / `?&` still collide with positional placeholders
+    by design of this interop layer — write those queries with `$n`.
+    """
     if "?" not in query or "$" in query:
         return query, args
-    counter = {"n": 0}
-
-    def _sub(_m):
-        counter["n"] += 1
-        return f"${counter['n']}"
-
-    return re.sub(r"\?", _sub, query), args
+    out, n, in_str, i = [], 0, False, 0
+    while i < len(query):
+        ch = query[i]
+        if in_str:
+            out.append(ch)
+            if ch == "'":
+                if i + 1 < len(query) and query[i + 1] == "'":
+                    out.append("'")
+                    i += 1
+                else:
+                    in_str = False
+        elif ch == "'":
+            in_str = True
+            out.append(ch)
+        elif ch == "?":
+            n += 1
+            out.append(f"${n}")
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out), args
 
 
 # ── SQLite backend ────────────────────────────────────────────────
@@ -175,6 +221,42 @@ DB_PATH = DATA_DIR / os.environ.get("DB_FILENAME", "agent.db")
 _connection_lock = asyncio.Lock()
 _db: Optional[aiosqlite.Connection] = None
 _db_open = False  # aiosqlite/sqlite3 lack a reliable .closed in Py3.12
+
+
+class _TaskReentrantLock:
+    """Async lock the owning task may re-enter.
+
+    The SQLite backend multiplexes everything through ONE connection, so
+    every db operation is serialized behind this lock, and transaction()
+    holds it for the whole block — no other task can commit (or roll
+    back) its partial work mid-transaction. The same task may still nest
+    db calls inside its own transaction, hence reentrance.
+    """
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._owner: Optional[asyncio.Task] = None
+        self._depth = 0
+
+    async def __aenter__(self) -> "_TaskReentrantLock":
+        task = asyncio.current_task()
+        if self._owner is task:
+            self._depth += 1
+            return self
+        await self._lock.acquire()
+        self._owner = task
+        self._depth = 1
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        self._depth -= 1
+        if self._depth == 0:
+            self._owner = None
+            self._lock.release()
+        return False
+
+
+_op_lock = _TaskReentrantLock()
 
 
 def _is_closed(conn: Optional[aiosqlite.Connection]) -> bool:
@@ -342,10 +424,11 @@ async def execute(query: str, *args: Any):
         async with pool.acquire() as conn:
             return await conn.execute(query, *args)
     query, args = _to_sqlite_placeholders(query, args)
-    db = await get_connection()
-    async with db.execute(query, args) as cursor:
-        await db.commit()
-        return cursor.rowcount
+    async with _op_lock:
+        db = await get_connection()
+        async with db.execute(query, args) as cursor:
+            await db.commit()
+            return cursor.rowcount
 
 
 async def fetchone(query: str, *args: Any) -> Optional[dict]:
@@ -358,9 +441,10 @@ async def fetchone(query: str, *args: Any) -> Optional[dict]:
             row = await conn.fetchrow(query, *args)
             return dict(row) if row else None
     query, args = _to_sqlite_placeholders(query, args)
-    db = await get_connection()
-    async with db.execute(query, args) as cursor:
-        row = await cursor.fetchone()
+    async with _op_lock:
+        db = await get_connection()
+        async with db.execute(query, args) as cursor:
+            row = await cursor.fetchone()
     return dict(row) if row else None
 
 
@@ -378,9 +462,10 @@ async def fetchall(query: str, *args: Any) -> List[dict]:
             rows = await conn.fetch(query, *args)
             return [dict(r) for r in rows]
     query, args = _to_sqlite_placeholders(query, args)
-    db = await get_connection()
-    async with db.execute(query, args) as cursor:
-        rows = await cursor.fetchall()
+    async with _op_lock:
+        db = await get_connection()
+        async with db.execute(query, args) as cursor:
+            rows = await cursor.fetchall()
     return [dict(r) for r in rows]
 
 
@@ -393,9 +478,10 @@ async def fetchval(query: str, *args: Any) -> Any:
         async with pool.acquire() as conn:
             return await conn.fetchval(query, *args)
     query, args = _to_sqlite_placeholders(query, args)
-    db = await get_connection()
-    async with db.execute(query, args) as cursor:
-        row = await cursor.fetchone()
+    async with _op_lock:
+        db = await get_connection()
+        async with db.execute(query, args) as cursor:
+            row = await cursor.fetchone()
     if row is None:
         return None
     return (dict(row) or {}).get(next(iter(dict(row)), None))
@@ -408,9 +494,10 @@ async def executemany(sql: str, params_list: List[tuple]) -> int:
         async with pool.acquire() as conn:
             await conn.executemany(sql, [tuple(p) for p in params_list])
         return len(params_list)
-    db = await get_connection()
-    await db.executemany(sql, params_list)
-    await db.commit()
+    async with _op_lock:
+        db = await get_connection()
+        await db.executemany(sql, params_list)
+        await db.commit()
     return len(params_list)
 
 
@@ -427,24 +514,32 @@ async def acquire() -> AsyncIterator[Any]:
         async with pool.acquire() as conn:
             yield conn
     else:
-        yield await get_connection()
+        async with _op_lock:
+            yield await get_connection()
 
 
 @contextlib.asynccontextmanager
 async def transaction() -> AsyncIterator[Any]:
-    """Borrow a connection and wrap the block in a transaction."""
+    """Borrow a connection and wrap the block in a transaction.
+
+    On SQLite the block also holds the backend-wide op lock, so no other
+    task can commit on the shared connection mid-block — the block is
+    actually atomic. Keep blocks short: other tasks' db calls wait.
+    Nested db calls from the SAME task are fine (the lock is reentrant).
+    """
     if _use_postgres():
         async with acquire() as conn:
             async with conn.transaction():
                 yield conn
     else:
-        conn = await get_connection()
-        try:
-            yield conn
-            await conn.commit()
-        except Exception:
-            await conn.rollback()
-            raise
+        async with _op_lock:
+            conn = await get_connection()
+            try:
+                yield conn
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
 
 
 async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
@@ -502,8 +597,9 @@ async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
         # executescript() handles multi-statement SQL correctly, including
         # strings containing semicolons. It auto-commits per statement —
         # acceptable for migrations.
-        conn = await get_connection()
-        await conn.executescript(mf.read_text(encoding="utf-8"))
+        async with _op_lock:
+            conn = await get_connection()
+            await conn.executescript(mf.read_text(encoding="utf-8"))
         await execute(
             "INSERT OR IGNORE INTO _migrations (name) VALUES (?)", (mf.name,)
         )

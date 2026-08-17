@@ -7,11 +7,10 @@ mini-app contract. Smooth by design: scaffold -> agent builds -> you
 iterate in the same session.
 """
 import os
-import shutil
-import subprocess
 from pathlib import Path
 
 from . import add as add_cmd
+from .. import runtimes
 
 
 class CodeError(RuntimeError):
@@ -71,15 +70,11 @@ def run_miniapp(args) -> dict:
         result["note"] = "dry-run: mission prompt prepared, qwen not launched"
         return result
 
-    qwen = shutil.which("qwen")
-    if not qwen:
-        raise CodeError(
-            "qwen (Qwen Code) not found on PATH. Install it with "
-            "`npm install -g @qwen-code/qwen-code`, then re-run."
-        )
+    spec = runtimes.get_runtime(getattr(args, "runtime", "qwen") or "qwen")
+    argv = spec.launch_argv(mission)  # raises with install hint if unavailable
 
     os.chdir(agent_dir)
-    os.execvp(qwen, [qwen, "--prompt-interactive", mission])
+    os.execvp(argv[0], argv)
     return result  # unreachable; exec replaces the process
 
 
@@ -114,13 +109,9 @@ def run_skill(args) -> dict:
         result["note"] = "dry-run: mission prompt prepared, qwen not launched"
         return result
 
-    qwen = shutil.which("qwen")
-    if not qwen:
-        raise CodeError(
-            "qwen (Qwen Code) not found on PATH. Install it with "
-            "`npm install -g @qwen-code/qwen-code`, then re-run."
-        )
+    spec = runtimes.get_runtime(getattr(args, "runtime", "qwen") or "qwen")
+    argv = spec.launch_argv(mission)  # raises with install hint if unavailable
 
     os.chdir(agent_dir)
-    os.execvp(qwen, [qwen, "--prompt-interactive", mission])
+    os.execvp(argv[0], argv)
     return result

@@ -39,7 +39,11 @@ services:
       - endpoint-platform
 
   endpoint-platform:
-    build: ./platform
+    build:
+      context: ./platform
+      args:
+        USER_ID: ${USER_ID:-1000}
+        USER_NAME: ${USER_NAME:-user}
     init: true
     restart: unless-stopped
     environment:

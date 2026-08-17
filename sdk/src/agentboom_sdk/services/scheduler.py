@@ -54,6 +54,9 @@ class Scheduler:
         self._task: Optional[asyncio.Task] = None
         self._sem = asyncio.Semaphore(MAX_JOB_PARALLEL)
         self._in_flight: set = set()
+        # Strong references to dispatched run tasks — a create_task()
+        # result nobody holds can be garbage-collected mid-execution.
+        self._run_tasks: set = set()
 
     # ── lifecycle ─────────────────────────────────────────────────
 
@@ -116,18 +119,36 @@ class Scheduler:
                     _fmt(next_run) if next_run else None,
                 ),
             )
-        # Drop jobs that vanished from the manifest.
+        # Drop jobs that vanished from the manifest. Their job_runs must
+        # go first: job_runs.job_id references schedule_jobs(id) with
+        # foreign_keys=ON, so deleting a job that has run history would
+        # raise an IntegrityError (which bricks gateway startup).
         declared = [j.get("name") for j in jobs if j.get("name")]
         if declared:
             placeholders = ",".join("?" * len(declared))
+            await db.execute(
+                f"DELETE FROM job_runs WHERE job_id IN ("
+                f"SELECT id FROM schedule_jobs WHERE app = ? AND name NOT IN ({placeholders}))",
+                (app_name, *declared),
+            )
             await db.execute(
                 f"DELETE FROM schedule_jobs WHERE app = ? AND name NOT IN ({placeholders})",
                 (app_name, *declared),
             )
         else:
+            await db.execute(
+                "DELETE FROM job_runs WHERE job_id IN ("
+                "SELECT id FROM schedule_jobs WHERE app = ?)",
+                (app_name,),
+            )
             await db.execute("DELETE FROM schedule_jobs WHERE app = ?", (app_name,))
 
     async def unregister_app(self, app_name: str) -> None:
+        await db.execute(
+            "DELETE FROM job_runs WHERE job_id IN ("
+            "SELECT id FROM schedule_jobs WHERE app = ?)",
+            (app_name,),
+        )
         await db.execute("DELETE FROM schedule_jobs WHERE app = ?", (app_name,))
 
     # ── main loop ─────────────────────────────────────────────────
@@ -156,73 +177,82 @@ class Scheduler:
             if job["id"] in self._in_flight:
                 continue
             self._in_flight.add(job["id"])
-            asyncio.create_task(self._run_job(dict(job)))
+            task = asyncio.create_task(self._run_job(dict(job)))
+            self._run_tasks.add(task)
+            task.add_done_callback(self._run_tasks.discard)
 
     async def _run_job(self, job: Dict[str, Any]):
-        started = _utcnow()
-        await db.execute(
-            """
-            INSERT INTO job_runs (job_id, job_name, status, started_at)
-            VALUES (?, ?, 'running', ?)
-            """,
-            (job["id"], f"{job['app']}.{job['name']}", _fmt(started)),
-        )
-        row = await db.fetchone(
-            "SELECT id FROM job_runs WHERE job_id = ? AND started_at = ? AND status = 'running'",
-            (job["id"], _fmt(started)),
-        )
-        run_id = row["id"] if row else None
-
-        error: Optional[str] = None
+        # The run row is recorded only once the semaphore is held: while
+        # queued, the run is not 'running', so duration_ms excludes queue
+        # wait and the stale-reaper cannot kill a run that never started.
         try:
             async with self._sem:
-                if job["type"] == "agent":
-                    answer = await agent_sdk.ask(
-                        job.get("prompt") or "", timeout=AGENT_JOB_TIMEOUT
+                started = _utcnow()
+                await db.execute(
+                    """
+                    INSERT INTO job_runs (job_id, job_name, status, started_at)
+                    VALUES (?, ?, 'running', ?)
+                    """,
+                    (job["id"], f"{job['app']}.{job['name']}", _fmt(started)),
+                )
+                row = await db.fetchone(
+                    "SELECT id FROM job_runs WHERE job_id = ? AND started_at = ? AND status = 'running'",
+                    (job["id"], _fmt(started)),
+                )
+                run_id = row["id"] if row else None
+
+                error: Optional[str] = None
+                try:
+                    if job["type"] == "agent":
+                        answer = await agent_sdk.ask(
+                            job.get("prompt") or "", timeout=AGENT_JOB_TIMEOUT
+                        )
+                        if answer is None:
+                            error = "agent turn returned no answer"
+                    else:
+                        url = f"{INTERNAL_URL}/api/{job['app']}/{job.get('target') or ''}".rstrip("/")
+                        async with httpx.AsyncClient(timeout=HTTP_JOB_TIMEOUT) as client:
+                            resp = await client.post(url)
+                        if resp.status_code >= 400:
+                            error = f"HTTP {resp.status_code}: {resp.text[:200]}"
+                except Exception as exc:  # noqa: BLE001 — recorded, never crashes the loop
+                    error = str(exc)
+
+                finished = _utcnow()
+                status = "failed" if error else "success"
+                if run_id:
+                    await db.execute(
+                        """
+                        UPDATE job_runs
+                        SET finished_at = ?, duration_ms = ?, status = ?, error = ?
+                        WHERE id = ?
+                        """,
+                        (_fmt(finished), int((finished - started).total_seconds() * 1000),
+                         status, error, run_id),
                     )
-                    if answer is None:
-                        error = "agent turn returned no answer"
+
+                new_fail = (job.get("fail_count") or 0) + (1 if error else 0)
+                next_run = _next_run_after(job, finished, failed=bool(error), fail_count=new_fail)
+                await db.execute(
+                    """
+                    UPDATE schedule_jobs
+                    SET last_run = ?, last_status = ?, fail_count = ?, next_run = ?
+                    WHERE id = ?
+                    """,
+                    (_fmt(finished), status, 0 if not error else new_fail,
+                     _fmt(next_run) if next_run else None, job["id"]),
+                )
+                if error:
+                    log.warning("Job %s.%s failed (fail_count=%d): %s",
+                                job["app"], job["name"], new_fail, error)
                 else:
-                    url = f"{INTERNAL_URL}/api/{job['app']}/{job.get('target') or ''}".rstrip("/")
-                    async with httpx.AsyncClient(timeout=HTTP_JOB_TIMEOUT) as client:
-                        resp = await client.post(url)
-                    if resp.status_code >= 400:
-                        error = f"HTTP {resp.status_code}: {resp.text[:200]}"
-        except Exception as exc:  # noqa: BLE001 — recorded, never crashes the loop
-            error = str(exc)
-
-        finished = _utcnow()
-        status = "failed" if error else "success"
-        if run_id:
-            await db.execute(
-                """
-                UPDATE job_runs
-                SET finished_at = ?, duration_ms = ?, status = ?, error = ?
-                WHERE id = ?
-                """,
-                (_fmt(finished), int((finished - started).total_seconds() * 1000),
-                 status, error, run_id),
-            )
-
-        new_fail = (job.get("fail_count") or 0) + (1 if error else 0)
-        next_run = _next_run_after(job, finished, failed=bool(error), fail_count=new_fail)
-        await db.execute(
-            """
-            UPDATE schedule_jobs
-            SET last_run = ?, last_status = ?, fail_count = ?, next_run = ?
-            WHERE id = ?
-            """,
-            (_fmt(finished), status, 0 if not error else new_fail,
-             _fmt(next_run) if next_run else None, job["id"]),
-        )
-        if error:
-            log.warning("Job %s.%s failed (fail_count=%d): %s",
-                        job["app"], job["name"], new_fail, error)
-        else:
-            log.info("Job %s.%s ok in %dms",
-                     job["app"], job["name"],
-                     int((finished - started).total_seconds() * 1000))
-        self._in_flight.discard(job["id"])
+                    log.info("Job %s.%s ok in %dms",
+                             job["app"], job["name"],
+                             int((finished - started).total_seconds() * 1000))
+        finally:
+            # Without this, an unexpected error (e.g. the db insert above
+            # failing) would leave the job in _in_flight forever.
+            self._in_flight.discard(job["id"])
 
     async def _reap_stale_runs(self, now: datetime):
         """Re-arm jobs stuck in 'running' past STALE_RUNNING_SEC.

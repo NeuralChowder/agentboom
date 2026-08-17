@@ -114,8 +114,11 @@ def run_add_package(args) -> dict:
         existing = env_path.read_text(encoding="utf-8")
         for line in meta.get("env_example", []):
             key = line.split("=", 1)[0].strip()
+            # Only an actual (uncommented) assignment counts as defined —
+            # commented lines like `# KEY=` are documentation, and treating
+            # them as definitions silently skipped package env lines.
             if key and any(
-                l.strip().startswith(key + "=") or l.strip().startswith("# " + key + "=")
+                l.strip().startswith(key + "=")
                 for l in existing.splitlines()
             ):
                 continue

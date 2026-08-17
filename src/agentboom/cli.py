@@ -14,6 +14,8 @@ from agentboom import __version__
 from agentboom import fleet as fleet_reg
 from agentboom.commands import add as add_cmd
 from agentboom.commands import adopt as adopt_cmd
+from agentboom import runtimes
+from agentboom.commands import code as code_cmd
 from agentboom.commands import console as console_cmd
 from agentboom.commands import fleetcmd
 from agentboom.commands import doctor as doctor_cmd
@@ -78,11 +80,13 @@ def build_parser() -> argparse.ArgumentParser:
                        help="scaffold a skill, mini-app, or optional package")
     add_sub = p.add_subparsers(dest="add_kind", required=True)
     for kind, runner in (("skill", "run_skill"), ("miniapp", "run_miniapp")):
-        sp = add_sub.add_parser(kind, help=f"scaffold a new {kind} inside an agent")
+        sp = add_sub.add_parser(kind, parents=[common],
+                                help=f"scaffold a new {kind} inside an agent")
         sp.add_argument("name", help=f"{kind} name in kebab-case")
         sp.add_argument("--description", help="one-line description")
         sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
-    sp = add_sub.add_parser("package", help="install an optional package into an agent")
+    sp = add_sub.add_parser("package", parents=[common],
+                            help="install an optional package into an agent")
     sp.add_argument("name", help="package name (see `agentboom packages`)")
     sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
 
@@ -90,15 +94,23 @@ def build_parser() -> argparse.ArgumentParser:
                        help="let a qwen agent build a mini-app or skill for you")
     code_sub = p.add_subparsers(dest="code_kind", required=True)
     for kind in ("miniapp", "skill"):
-        sp = code_sub.add_parser(kind,
+        sp = code_sub.add_parser(kind, parents=[common],
             help=f"scaffold (if needed) then open qwen with a mission to build the {kind}")
         sp.add_argument("name", help=f"{kind} name in kebab-case")
         sp.add_argument("prompt", nargs="?", default="",
                         help="what the %s should do, in plain language" % kind)
         sp.add_argument("--description", help="one-line description for the scaffold")
         sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
+        sp.add_argument("--runtime", default="qwen",
+                        help="agent runtime to use (qwen today; opencode/claude prepared)")
         sp.add_argument("--dry-run", action="store_true",
-                        help="prepare the mission prompt but do not launch qwen")
+                        help="prepare the mission prompt but do not launch the runtime")
+
+    p = sub.add_parser("install-runtime", parents=[common],
+                       help="show/run the install command for an agent runtime")
+    p.add_argument("name", help="runtime name (qwen, opencode, claude)")
+    p.add_argument("--yes", action="store_true",
+                   help="run the install command without asking")
 
     p = sub.add_parser("packages", parents=[common],
                        help="list available packages and those installed in an agent")
@@ -111,10 +123,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("fleet", parents=[common],
                        help="the operator view: status/add/remove registered agents")
     fleet_sub = p.add_subparsers(dest="fleet_action")
-    fleet_sub.add_parser("status", help="health + drift of every registered agent")
-    sp = fleet_sub.add_parser("add", help="register an agent in the fleet")
+    fleet_sub.add_parser("status", parents=[common],
+                         help="health + drift of every registered agent")
+    sp = fleet_sub.add_parser("add", parents=[common],
+                              help="register an agent in the fleet")
     sp.add_argument("dir", help="agent directory (must have .agentboom.json)")
-    sp = fleet_sub.add_parser("remove", help="unregister an agent")
+    sp = fleet_sub.add_parser("remove", parents=[common],
+                              help="unregister an agent")
     sp.add_argument("name", help="agent name or path")
 
     p = sub.add_parser("console", parents=[common],
@@ -266,6 +281,14 @@ def _print_human(command: str, result: dict) -> None:
                 print(f"[{flag}] {row['name']}  base={row['base_version']}"
                       f"  drift={drift}  errors={row['validate_errors']}{pkgs}")
                 print(f"       {row['path']}")
+    elif command == "install-runtime":
+        if result.get("installed"):
+            print(f"installed runtime '{result['runtime']}'")
+        elif result.get("command"):
+            print(f"to install '{result['runtime']}' run:\n  {result['command']}")
+            print("(or: agentboom install-runtime %s --yes)" % result["runtime"])
+        else:
+            print(result.get("note", ""))
     elif command == "code":
         print(f"{'Scaffolded' if result['scaffolded'] else 'Using existing'} "
               f"{result['kind']} '{result['name']}' in {result['agent_dir']}")
@@ -322,6 +345,8 @@ def main(argv=None) -> int:
                 result = fleetcmd.run_remove(args)
             else:
                 result = fleetcmd.run_status(args)
+        elif args.command == "install-runtime":
+            result = runtimes.install_runtime(args.name, yes=args.yes)
         elif args.command == "code":
             result = (code_cmd.run_miniapp(args) if args.code_kind == "miniapp"
                       else code_cmd.run_skill(args))
@@ -344,7 +369,7 @@ def main(argv=None) -> int:
             parser.error(f"unknown command {args.command}")
             return 2
     except (init_cmd.InitError, upgrade_cmd.UpgradeError, add_cmd.AddError,
-            code_cmd.CodeError,
+            code_cmd.CodeError, runtimes.RuntimeError_,
             packages_cmd.PackageError, adopt_cmd.AdoptError,
             fleetcmd.FleetError, console_cmd.ConsoleError,
             TemplateError, FileNotFoundError) as exc:

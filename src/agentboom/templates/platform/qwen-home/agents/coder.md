@@ -17,7 +17,7 @@ tools that are not listed.
 - Fail fast: run the code/tests you change; report real output, never
   assumed success.
 - Platform code lives under `/home/user/platform`. Mini-apps import only
-  from `sdk.` — keep that boundary.
+  from `agentboom_sdk` — keep that boundary.
 - Schema changes are numbered SQL migrations (`platform/migrations/`),
   never ad-hoc ALTERs.
 - Delegate external documentation research to the web-explorer agent;

@@ -112,7 +112,20 @@ agentboom code miniapp x "..." --dry-run   # show the mission, don't launch
 ```
 
 The split is deliberate: `add` = deterministic scaffold only; `code` =
-hand the scaffold to the agent. Requires `qwen` on PATH.
+hand the scaffold to the agent.
+
+Runtimes: `code` launches the mission with an agent runtime — `qwen`
+today (`--runtime qwen`, default), with `opencode` and `claude` prepared
+in the runtime registry for later. If the runtime is missing locally,
+the error prints the exact install command, or:
+
+```bash
+agentboom install-runtime qwen          # show the install command
+agentboom install-runtime qwen --yes    # run it
+```
+
+On the agents themselves the runtime already exists inside their
+containers, so `code` just works there.
 
 ## `agentboom packages [dir]`
 

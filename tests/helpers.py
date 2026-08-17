@@ -1,11 +1,16 @@
 """Shared test helpers: init a throwaway agent in a temp dir."""
 import argparse
+import os
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from agentboom.commands import init as init_cmd
+# Isolate the fleet registry before anything imports it — init registers
+# agents best-effort, and tests must never touch the user's real fleet.
+os.environ.setdefault("AGENTBOOM_HOME", tempfile.mkdtemp(prefix="agentboom-home-"))
+
+from agentboom.commands import init as init_cmd  # noqa: E402
 
 
 class AgentTestCase(unittest.TestCase):

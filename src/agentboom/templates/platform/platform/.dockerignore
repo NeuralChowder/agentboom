@@ -1,0 +1,10 @@
+# Local state that must not enter the platform build context.
+__pycache__/
+*.py[cod]
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.env
+*.log
+.DS_Store

@@ -46,7 +46,7 @@ Rules:
 ## Scheduler
 
 Jobs declared in manifests are registered in SQLite (`schedule_jobs`) and
-run by `services/scheduler.py`:
+run by the scheduler (`agentboom_sdk.services.scheduler`):
 
 - `http` jobs POST to the app's own endpoint (`target` relative to
   `/api/<app>/`).

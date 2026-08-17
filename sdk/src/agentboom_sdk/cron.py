@@ -12,15 +12,18 @@ Sunday. Both day-of-month and day-of-week restricted means "either matches",
 matching Vixie cron.
 
 Usage:
-    from sdk.cron import next_cron_time, is_valid_cron
+    from agentboom_sdk.cron import next_cron_time, is_valid_cron
 
     when = next_cron_time("0 9 * * 1-5", after=now, tz_name="Europe/Lisbon")
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
+
+log = logging.getLogger("agentboom_sdk.cron")
 
 __all__ = ["parse_cron", "is_valid_cron", "next_cron_time", "CronError"]
 
@@ -45,6 +48,10 @@ class CronError(ValueError):
 def _parse_field(field: str, name: str, min_val: int, max_val: int) -> List[int]:
     """Parse one cron field into the sorted list of values it matches."""
     values: set[int] = set()
+    # Day-of-week accepts 7 = Sunday. Expand in the 0..7 space and wrap
+    # afterwards — normalising 7→0 before expansion would turn "5-7" into
+    # "5-0" and silently drop Sunday from the range.
+    expand_max = 7 if name == "weekday" else max_val
 
     for part in field.split(","):
         part = part.strip()
@@ -63,7 +70,7 @@ def _parse_field(field: str, name: str, min_val: int, max_val: int) -> List[int]
                 raise CronError(f"{name}: step must be positive in {field!r}")
 
         if part == "*":
-            lo, hi = min_val, max_val
+            lo, hi = min_val, expand_max
         elif "-" in part.lstrip("-"):
             lo_str, _, hi_str = part.partition("-")
             try:
@@ -77,21 +84,17 @@ def _parse_field(field: str, name: str, min_val: int, max_val: int) -> List[int]
                 raise CronError(f"{name}: bad value {part!r} in {field!r}")
             # A bare number with a step means "from here to the end of range",
             # e.g. "5/10" in the minute field is 5,15,25,35,45,55.
-            hi = max_val if step > 1 else lo
+            hi = expand_max if step > 1 else lo
 
-        # Sunday is 0, but crontabs commonly write 7 — normalise before bounds.
-        if name == "weekday":
-            lo = 0 if lo == 7 else lo
-            hi = 0 if hi == 7 else hi
-            if hi < lo:  # e.g. "5-7" became "5-0"
-                hi = max_val
-
-        if lo < min_val or hi > max_val or hi < lo:
+        if lo < min_val or hi > expand_max or hi < lo:
             raise CronError(
                 f"{name}: {part!r} out of range {min_val}-{max_val} in {field!r}"
             )
 
         values.update(range(lo, hi + 1, step))
+
+    if name == "weekday":
+        values = {0 if v == 7 else v for v in values}
 
     if not values:
         raise CronError(f"{name}: {field!r} matches nothing")
@@ -134,6 +137,9 @@ def _resolve_tz(tz_name: str):
 
         return ZoneInfo(tz_name)
     except Exception:
+        # A typo in SCHEDULER_TZ would otherwise silently reschedule
+        # everything in UTC — loud enough to notice, never fatal.
+        log.warning("Unknown timezone %r — falling back to UTC", tz_name)
         return timezone.utc
 
 

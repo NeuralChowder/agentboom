@@ -167,3 +167,31 @@ class CliHelpTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             from agentboom import cli
             cli.main(["--version"])
+
+
+class RuntimeTests(unittest.TestCase):
+    def test_unknown_runtime_raises(self):
+        from agentboom import runtimes
+        with self.assertRaises(runtimes.RuntimeError_):
+            runtimes.get_runtime("doesnotexist")
+
+    def test_qwen_launch_argv(self):
+        from agentboom import runtimes
+        spec = runtimes.get_runtime("qwen")
+        self.assertTrue(spec.supported)
+        argv = spec.launch_argv("build the thing")
+        self.assertEqual(argv[0], "qwen")
+        self.assertIn("--prompt-interactive", argv)
+        self.assertIn("build the thing", argv)
+
+    def test_unsupported_runtime_launch_raises_with_hint(self):
+        from agentboom import runtimes
+        spec = runtimes.get_runtime("opencode")
+        with self.assertRaises(runtimes.RuntimeError_):
+            spec.launch_argv("x")
+
+    def test_install_runtime_reports_existing(self):
+        from agentboom import runtimes
+        result = runtimes.install_runtime("qwen")
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["installed"])  # qwen already on PATH here

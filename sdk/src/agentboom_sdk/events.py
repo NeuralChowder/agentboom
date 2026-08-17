@@ -7,23 +7,48 @@ dot-notation: `alert.created`, `invoice.received`, ...
 """
 import asyncio
 import logging
-from typing import Any, Callable, Coroutine, Dict, List
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
 
 log = logging.getLogger("agentboom_sdk.events")
 
 Handler = Callable[[Dict[str, Any]], Coroutine]
-_subscribers: Dict[str, List[Handler]] = {}
+# (key, handler) pairs. key lets a caller replace its own previous
+# subscription — the gateway re-subscribes mini-apps on every hot reload,
+# and without replacement each reload would duplicate every handler.
+_subscribers: Dict[str, List[Tuple[Optional[str], Handler]]] = {}
 
 
-def subscribe(event_type: str, handler: Handler) -> None:
-    _subscribers.setdefault(event_type, []).append(handler)
-    log.debug("Subscribed to %s (%d handlers)", event_type, len(_subscribers[event_type]))
+def subscribe(event_type: str, handler: Handler, key: Optional[str] = None) -> None:
+    """Register a handler. With `key`, any earlier subscription carrying the
+    same key on this event type is replaced (idempotent re-registration)."""
+    handlers = _subscribers.setdefault(event_type, [])
+    if key is not None:
+        handlers[:] = [(k, h) for k, h in handlers if k != key]
+    handlers.append((key, handler))
+    log.debug("Subscribed to %s (%d handlers)", event_type, len(handlers))
+
+
+def unsubscribe(event_type: str, key: str) -> int:
+    """Remove every subscription of `key` on this event type. Returns count."""
+    handlers = _subscribers.get(event_type, [])
+    before = len(handlers)
+    handlers[:] = [(k, h) for k, h in handlers if k != key]
+    return before - len(handlers)
+
+
+def unsubscribe_key(key: str) -> int:
+    """Remove every subscription of `key` across all event types. Returns
+    the number of handlers removed (an unloaded mini-app leaves no trace)."""
+    removed = 0
+    for event_type in list(_subscribers):
+        removed += unsubscribe(event_type, key)
+    return removed
 
 
 async def publish(event_type: str, data: Dict[str, Any]) -> int:
     """Publish an event. Returns number of handlers notified."""
     event = {"type": event_type, "data": data}
-    handlers = _subscribers.get(event_type, [])
+    handlers = [h for _, h in _subscribers.get(event_type, [])]
     if not handlers:
         return 0
 

@@ -36,11 +36,13 @@ with an allowlist — the platform has no end-user auth of its own.
 │   └── memories/           # persistent memory index
 └── platform/               # mini-app platform (see platform/README.md)
     ├── api_gateway.py      # hot-reload mini-app host
-    ├── sdk/                # shared SDK (only import root)
-    ├── services/           # scheduler
     ├── migrations/         # numbered SQL migrations
     └── miniapps/           # capabilities, hot-loaded at /api/<name>/
 ```
+
+The shared runtime machinery (db, agent, llm, cron, task queue, events,
+scheduler) is the `agentboom-sdk` package — pinned in
+`platform/requirements.txt`, imported as `agentboom_sdk`.
 
 ## Operating the agent
 

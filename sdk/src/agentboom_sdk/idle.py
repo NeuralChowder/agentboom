@@ -41,6 +41,32 @@ from agentboom_sdk.db import execute, fetchrow
 
 log = logging.getLogger("agentboom_sdk.idle")
 
+# The module bootstraps its own table: no migration anywhere creates it,
+# and requiring one would break every adopting job on first use. The name
+# is unqualified on purpose — `scheduler.job_input_state` is PostgreSQL
+# schema syntax and never existed on SQLite.
+_TABLE = "job_input_state"
+_ensured = False
+
+
+async def _ensure_table() -> None:
+    global _ensured
+    if _ensured:
+        return
+    await execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {_TABLE} (
+            job_key TEXT PRIMARY KEY,
+            fingerprint TEXT NOT NULL,
+            skips INTEGER NOT NULL DEFAULT 0,
+            last_ran_at TIMESTAMP,
+            last_skipped_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+        """
+    )
+    _ensured = True
+
 
 async def input_fingerprint(query: str, *args: Any) -> str:
     """Reduce a job's inputs to a short string.

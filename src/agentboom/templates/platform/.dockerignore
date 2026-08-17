@@ -1,0 +1,19 @@
+# Secrets must never reach the Docker daemon — even though no Dockerfile
+# COPYs them, the whole context is transferred on every build.
+.env
+.qwen-docker/settings.json
+
+# Runtime / local state no image build needs. The agent home and platform
+# code arrive in the containers via bind mounts, not via COPY.
+.git
+.qwen-docker/
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+__pycache__/
+*.py[cod]
+node_modules/
+*.log
+.DS_Store

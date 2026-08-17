@@ -131,7 +131,9 @@ async def read_credential(service: str):
 @router.post("/credentials/{service}/rotate")
 async def rotate_credential(service: str, payload: dict):
     result = await store_credential(service, payload)
-    if result.status_code == 200:
+    # On success store_credential returns a plain dict; the error paths
+    # return JSONResponse objects (no key, wrong type, ...).
+    if isinstance(result, dict) and result.get("ok"):
         await _audit(service, "rotate")
     return result
 
