@@ -75,6 +75,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("name", help="package name (see `agentboom packages`)")
     sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
 
+    p = sub.add_parser("code", parents=[common],
+                       help="let a qwen agent build a mini-app or skill for you")
+    code_sub = p.add_subparsers(dest="code_kind", required=True)
+    for kind in ("miniapp", "skill"):
+        sp = code_sub.add_parser(kind,
+            help=f"scaffold (if needed) then open qwen with a mission to build the {kind}")
+        sp.add_argument("name", help=f"{kind} name in kebab-case")
+        sp.add_argument("prompt", nargs="?", default="",
+                        help="what the %s should do, in plain language" % kind)
+        sp.add_argument("--description", help="one-line description for the scaffold")
+        sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
+        sp.add_argument("--dry-run", action="store_true",
+                        help="prepare the mission prompt but do not launch qwen")
+
     p = sub.add_parser("packages", parents=[common],
                        help="list available packages and those installed in an agent")
     p.add_argument("dir", nargs="?", default=None, help="agent directory (optional)")
@@ -241,6 +255,11 @@ def _print_human(command: str, result: dict) -> None:
                 print(f"[{flag}] {row['name']}  base={row['base_version']}"
                       f"  drift={drift}  errors={row['validate_errors']}{pkgs}")
                 print(f"       {row['path']}")
+    elif command == "code":
+        print(f"{'Scaffolded' if result['scaffolded'] else 'Using existing'} "
+              f"{result['kind']} '{result['name']}' in {result['agent_dir']}")
+        if not result.get("launched"):
+            print(result.get("note", ""))
     elif command == "console":
         print(f"Boomkeeper workspace refreshed at {result['workspace']}")
         if not result.get("launched"):
@@ -287,6 +306,9 @@ def main(argv=None) -> int:
                 result = fleetcmd.run_remove(args)
             else:
                 result = fleetcmd.run_status(args)
+        elif args.command == "code":
+            result = (code_cmd.run_miniapp(args) if args.code_kind == "miniapp"
+                      else code_cmd.run_skill(args))
         elif args.command == "console":
             result = console_cmd.run(args)
         elif args.command == "skills":
@@ -306,6 +328,7 @@ def main(argv=None) -> int:
             parser.error(f"unknown command {args.command}")
             return 2
     except (init_cmd.InitError, upgrade_cmd.UpgradeError, add_cmd.AddError,
+            code_cmd.CodeError,
             packages_cmd.PackageError, adopt_cmd.AdoptError,
             fleetcmd.FleetError, console_cmd.ConsoleError,
             TemplateError, FileNotFoundError) as exc:

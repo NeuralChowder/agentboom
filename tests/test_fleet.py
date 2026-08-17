@@ -123,3 +123,28 @@ def tearDownModule():
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CodeCommandTests(unittest.TestCase):
+    def setUp(self):
+        self.agent_dir = pathlib.Path(tempfile.mkdtemp(dir=_TMP)) / "coded"
+        _init(self.agent_dir, "coded")
+
+    def test_code_miniapp_dry_run_scaffolds_and_prepares_mission(self):
+        from agentboom.commands import code as code_cmd
+        result = code_cmd.run_miniapp(argparse.Namespace(
+            name="coded-app", prompt="track my plants watering",
+            description="", dir=str(self.agent_dir), dry_run=True))
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["scaffolded"])
+        self.assertIn("platform/miniapps/coded-app", result["mission"])
+        self.assertIn("agentboom_sdk", result["mission"])
+        self.assertTrue(
+            (self.agent_dir / "platform/miniapps/coded-app/main.py").is_file())
+
+    def test_code_refuses_non_agent_dir(self):
+        from agentboom.commands import code as code_cmd
+        plain = pathlib.Path(tempfile.mkdtemp(dir=_TMP))
+        with self.assertRaises(code_cmd.CodeError):
+            code_cmd.run_miniapp(argparse.Namespace(
+                name="x", prompt="", description="", dir=str(plain), dry_run=True))

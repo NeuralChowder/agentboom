@@ -97,6 +97,23 @@ and env lines to `.env.example` (both idempotent), records the install in
  "post_install": ["..."]}
 ```
 
+## `agentboom code miniapp|skill <name> ["prompt"]`
+
+Scaffolds if needed (same as `add`), then launches `qwen
+--prompt-interactive` **inside the agent repo** with a mission prompt that
+already knows the mini-app/skill contract. You describe what you want in
+plain language; the agent builds it; you keep iterating in the same
+session.
+
+```bash
+agentboom code miniapp backups "watch my restic backups and alert on failures"
+agentboom code skill runbook "how to restart the homelab services safely"
+agentboom code miniapp x "..." --dry-run   # show the mission, don't launch
+```
+
+The split is deliberate: `add` = deterministic scaffold only; `code` =
+hand the scaffold to the agent. Requires `qwen` on PATH.
+
 ## `agentboom packages [dir]`
 
 List available packages, and (with an agent dir) installed ones.
