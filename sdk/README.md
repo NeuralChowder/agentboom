@@ -28,7 +28,7 @@ from agentloom_sdk.services.scheduler import scheduler
 Released wheels are attached to agentloom's GitHub releases:
 
 ```
-agentloom_sdk @ https://github.com/ejbp/agentloom/releases/download/v0.2.0/agentloom_sdk-0.2.0-py3-none-any.whl
+agentloom_sdk @ https://github.com/ejbp/agentloom/releases/download/v0.2.1/agentloom_sdk-0.2.1-py3-none-any.whl
 ```
 
 ## Versioning

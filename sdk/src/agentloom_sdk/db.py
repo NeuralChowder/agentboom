@@ -86,13 +86,27 @@ async def executemany(sql: str, params_list: List[tuple]) -> int:
     return len(params_list)
 
 
-async def run_migrations() -> None:
-    """Apply pending SQL migrations from platform/migrations/.
+async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
+    """Apply pending SQL migrations.
+
+    Migration directory resolution, in order:
+    1. explicit `migrations_dir` argument
+    2. MIGRATIONS_DIR env var
+    3. <package parent>/migrations (works when the SDK is vendored)
+    4. <cwd>/migrations (normal container layout, where the SDK is
+       pip-installed and the platform runs from its own root)
 
     Migrations are numbered .sql files, immutable once applied anywhere.
     """
-    migrations_dir = BASE_DIR / "migrations"
-    if not migrations_dir.exists():
+    if migrations_dir is None:
+        env_dir = os.environ.get("MIGRATIONS_DIR")
+        if env_dir:
+            migrations_dir = Path(env_dir)
+        else:
+            vendored = BASE_DIR / "migrations"
+            migrations_dir = vendored if vendored.is_dir() else Path.cwd() / "migrations"
+    if not migrations_dir.is_dir():
+        log.warning("No migrations directory found at %s", migrations_dir)
         return
 
     await execute("""
