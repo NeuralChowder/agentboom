@@ -1,13 +1,13 @@
-# agentloom-sdk
+# agentboom-sdk
 
-The shared runtime SDK used by [agentloom](https://github.com/ejbp/agentloom)
+The shared runtime SDK used by [agentboom](https://github.com/ejbp/agentboom)
 agents. Mini-apps and platform services import it instead of hand-rolling
 the machinery:
 
 ```python
-from agentloom_sdk import db, events
-from agentloom_sdk.llm import complete_json
-from agentloom_sdk.services.scheduler import scheduler
+from agentboom_sdk import db, events
+from agentboom_sdk.llm import complete_json
+from agentboom_sdk.services.scheduler import scheduler
 ```
 
 | Module | Purpose |
@@ -28,14 +28,14 @@ from agentloom_sdk.services.scheduler import scheduler
 
 ## Install
 
-Released wheels are attached to agentloom's GitHub releases:
+Released wheels are attached to agentboom's GitHub releases:
 
 ```
-agentloom_sdk @ https://github.com/ejbp/agentloom/releases/download/v0.5.0/agentloom_sdk-0.5.0-py3-none-any.whl
+agentboom_sdk @ https://github.com/ejbp/agentboom/releases/download/v0.6.0/agentboom_sdk-0.6.0-py3-none-any.whl
 ```
 
 ## Versioning
 
-The SDK is versioned in lockstep with the agentloom CLI and templates
+The SDK is versioned in lockstep with the agentboom CLI and templates
 (one base, one version). Generated agents pin the wheel URL in
 `platform/requirements.txt`; bumping the pin + rebuilding is the upgrade.

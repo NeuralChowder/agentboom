@@ -23,7 +23,7 @@ jobs:
         run: python tests/run_tests.py -v
 
       - name: Template selfcheck
-        run: python bin/agentloom selfcheck
+        run: python bin/agentboom selfcheck
 
       - name: Packaging sanity (build both wheels)
         run: |

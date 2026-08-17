@@ -2,7 +2,7 @@ name: Release
 
 # Two-step pipeline: build both packages, then publish them as GitHub
 # Release assets. Install a release with:
-#   pip install https://github.com/ejbp/agentloom/releases/download/<tag>/agentloom_sdk-<ver>-py3-none-any.whl
+#   pip install https://github.com/ejbp/agentboom/releases/download/<tag>/agentboom_sdk-<ver>-py3-none-any.whl
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - name: Install build tooling
         run: pip install build
 
-      - name: Build agentloom + agentloom-sdk (wheel + sdist)
+      - name: Build agentboom + agentboom-sdk (wheel + sdist)
         run: |
           python -m build . --outdir dist/
           python -m build sdk/ --outdir dist/

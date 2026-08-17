@@ -1,8 +1,8 @@
-"""Tests for optional packages (`agentloom add package`)."""
+"""Tests for optional packages (`agentboom add package`)."""
 import argparse
 import json
 
-from agentloom.commands import packages as packages_cmd
+from agentboom.commands import packages as packages_cmd
 
 from helpers import AgentTestCase
 
@@ -31,14 +31,14 @@ class RichLinkPackageTests(AgentTestCase):
         self.assertIn("8000", env)  # rendered {{PORT_PLATFORM}}
 
     def test_installed_agent_still_validates(self):
-        from agentloom.commands import validate as validate_cmd
+        from agentboom.commands import validate as validate_cmd
         packages_cmd.run_add_package(_pkg_args("rich-link", self.agent_dir))
         result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
         self.assertTrue(result["ok"], result["checks"])
 
     def test_registry_records_package(self):
         packages_cmd.run_add_package(_pkg_args("rich-link", self.agent_dir))
-        registry = json.loads((self.agent_dir / ".agentloom.json").read_text(encoding="utf-8"))
+        registry = json.loads((self.agent_dir / ".agentboom.json").read_text(encoding="utf-8"))
         self.assertIn("rich-link", registry["packages"])
 
 

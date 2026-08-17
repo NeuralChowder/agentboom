@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agentloom.commands import init as init_cmd
+from agentboom.commands import init as init_cmd
 
 
 class AgentTestCase(unittest.TestCase):
@@ -14,7 +14,7 @@ class AgentTestCase(unittest.TestCase):
     name = "test-agent"
 
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="agentloom-test-"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="agentboom-test-"))
         self.agent_dir = self.tmp / self.name
         self.init_result = init_cmd.run(argparse.Namespace(
             dir=str(self.agent_dir),

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the agentloom test suite (stdlib unittest, no dependencies).
+"""Run the agentboom test suite (stdlib unittest, no dependencies).
 
 Usage: python3 tests/run_tests.py [-v]
 """

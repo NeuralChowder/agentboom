@@ -1,0 +1,9 @@
+{
+  "name": "vault",
+  "description": "Encrypted credential store (AES-256-GCM) with audit logging — agentboom package.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": [],
+  "ui": null
+}

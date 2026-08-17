@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentloom-sdk"
-version = "0.5.0"
-description = "Shared runtime SDK for agentloom-based agents: SQLite data layer, qwen-serve agent client, LLM completions, cron, task queue, event bus, and the manifest job scheduler."
+name = "agentboom-sdk"
+version = "0.6.0"
+description = "Shared runtime SDK for agentboom-based agents: SQLite data layer, qwen-serve agent client, LLM completions, cron, task queue, event bus, and the manifest job scheduler."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -28,7 +28,7 @@ dependencies = [
 postgres = ["asyncpg>=0.29.0"]
 
 [project.urls]
-Homepage = "https://github.com/ejbp/agentloom"
+Homepage = "https://github.com/ejbp/agentboom"
 
 [tool.setuptools.packages.find]
 where = ["src"]

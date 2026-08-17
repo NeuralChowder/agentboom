@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentloom"
-version = "0.5.0"
+name = "agentboom"
+version = "0.6.0"
 description = "Scaffold, maintain, and upgrade autonomous agent projects from a shared, upgradable base (Qwen Code agent home + Python mini-app platform + Docker deployment)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,13 +23,13 @@ classifiers = [
 ]
 
 [project.scripts]
-agentloom = "agentloom.cli:main"
+agentboom = "agentboom.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ejbp/agentloom"
+Homepage = "https://github.com/ejbp/agentboom"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-agentloom = ["templates/**/*", "templates/**/.*"]
+agentboom = ["templates/**/*", "templates/**/.*"]

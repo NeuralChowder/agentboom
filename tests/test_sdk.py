@@ -1,4 +1,4 @@
-"""Tests for agentloom-sdk behaviours introduced in v0.4.0.
+"""Tests for agentboom-sdk behaviours introduced in v0.4.0.
 
 The SQLite backend is exercised against a real temp database; the
 PostgreSQL path is compile-checked only (no server in CI).
@@ -10,12 +10,12 @@ import shutil
 import tempfile
 import unittest
 
-_TMP = tempfile.mkdtemp(prefix="agentloom-sdk-tests-")
+_TMP = tempfile.mkdtemp(prefix="agentboom-sdk-tests-")
 os.environ["DATA_DIR"] = str(pathlib.Path(_TMP) / "data")
 os.environ.pop("DATABASE_URI", None)
 
-from agentloom_sdk import accepted, cron, db, idle, untrusted  # noqa: E402
-from agentloom_sdk.task_queue import queue  # noqa: E402
+from agentboom_sdk import accepted, cron, db, idle, untrusted  # noqa: E402
+from agentboom_sdk.task_queue import queue  # noqa: E402
 
 _MIGRATIONS = pathlib.Path(_TMP) / "migrations"
 _MIGRATIONS.mkdir()

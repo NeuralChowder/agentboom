@@ -2,9 +2,9 @@
 import argparse
 import json
 
-from agentloom.commands import upgrade as upgrade_cmd
-from agentloom.commands import validate as validate_cmd
-from agentloom.registry import REGISTRY_NAME, load_registry, sha256_file
+from agentboom.commands import upgrade as upgrade_cmd
+from agentboom.commands import validate as validate_cmd
+from agentboom.registry import REGISTRY_NAME, load_registry, sha256_file
 
 from helpers import AgentTestCase
 
@@ -30,7 +30,7 @@ class InitTests(AgentTestCase):
     def test_no_unrendered_placeholders(self):
         leftovers = []
         for path in self.agent_dir.rglob("*"):
-            if path.is_file() and path.name not in (".agentloom.json",):
+            if path.is_file() and path.name not in (".agentboom.json",):
                 try:
                     text = path.read_text(encoding="utf-8")
                 except UnicodeDecodeError:
@@ -56,7 +56,7 @@ class InitTests(AgentTestCase):
         self.assertFalse(result["changed"])
 
     def test_init_refuses_non_empty_dir(self):
-        from agentloom.commands.init import InitError, run
+        from agentboom.commands.init import InitError, run
         with self.assertRaises(InitError):
             run(argparse.Namespace(
                 dir=str(self.agent_dir), name="other", description="",

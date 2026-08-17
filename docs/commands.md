@@ -4,7 +4,7 @@ All commands accept `--json` for machine-readable output. Exit codes:
 **0** ok · **1** operation/check failed · **2** usage error. On failure
 with `--json`, the payload is `{"ok": false, "error": "..."}`.
 
-## `agentloom init <dir>`
+## `agentboom init <dir>`
 
 Scaffold a new agent from the `platform` template.
 
@@ -26,7 +26,7 @@ Flags: `--name` (kebab-case; default: directory name) · `--description` ·
 Refuses a non-empty target unless `--force`. Names must match
 `^[a-z][a-z0-9-]*$`.
 
-## `agentloom validate [dir]`
+## `agentboom validate [dir]`
 
 Structural health checks. Levels: `error` (fails, exit 1) · `warn` ·
 `info` (drift notes).
@@ -35,7 +35,7 @@ Check ids:
 
 | id | meaning |
 |---|---|
-| `agentloom.registry-missing` | no `.agentloom.json` — not an agentloom agent |
+| `agentboom.registry-missing` | no `.agentboom.json` — not an agentboom agent |
 | `structure.missing-file` | required file absent |
 | `entrypoint.dangling-script` | entrypoint references a script that doesn't exist |
 | `env.var-not-documented` | compose requires `${VAR}` (no default) missing from `.env.example` |
@@ -49,7 +49,7 @@ Check ids:
  "checks": [{"id": "...", "level": "...", "message": "...", "path": "..."}]}
 ```
 
-## `agentloom upgrade [dir]`
+## `agentboom upgrade [dir]`
 
 Sync managed base files. Default is **check-only**; `--apply` writes;
 `--force` (with `--apply`) also overwrites locally modified files.
@@ -72,7 +72,7 @@ Decision table per managed file:
  "locally_modified": [], "stale": []}
 ```
 
-## `agentloom add skill <name>` / `agentloom add miniapp <name>`
+## `agentboom add skill <name>` / `agentboom add miniapp <name>`
 
 Scaffold inside an agent (cwd or `--dir`). Refuses duplicates and
 non-kebab-case names.
@@ -82,12 +82,12 @@ non-kebab-case names.
  "created": ["..."], "next": "..."}
 ```
 
-## `agentloom add package <name>`
+## `agentboom add package <name>`
 
 Install an optional package into an agent: copies files (never
 overwriting), appends requirement lines to `platform/requirements.txt`
 and env lines to `.env.example` (both idempotent), records the install in
-`.agentloom.json`, and prints post-install steps.
+`.agentboom.json`, and prints post-install steps.
 
 ```json
 {"ok": true, "package": "vault", "agent_dir": "...",
@@ -97,7 +97,7 @@ and env lines to `.env.example` (both idempotent), records the install in
  "post_install": ["..."]}
 ```
 
-## `agentloom packages [dir]`
+## `agentboom packages [dir]`
 
 List available packages, and (with an agent dir) installed ones.
 
@@ -108,22 +108,22 @@ List available packages, and (with an agent dir) installed ones.
  "agent_dir": "..."}
 ```
 
-## `agentloom adopt [dir]`
+## `agentboom adopt [dir]`
 
 Bring an existing agent under base management. A file is marked managed
 ONLY when it is byte-identical to the template rendering with the stored
 variables; everything else stays agent-owned. Non-destructive by
-construction. Refuses if `.agentloom.json` already exists.
+construction. Refuses if `.agentboom.json` already exists.
 
 ```json
 {"ok": true, "name": "...", "template": "platform",
  "managed_matched": ["..."], "owned_or_diverged": ["..."]}
 ```
 
-## `agentloom fleet`
+## `agentboom fleet`
 
-Operator view over the fleet registry (`~/.agentloom/fleet.json`).
-`fleet add <dir>` registers an agent (requires `.agentloom.json` —
+Operator view over the fleet registry (`~/.agentboom/fleet.json`).
+`fleet add <dir>` registers an agent (requires `.agentboom.json` —
 `adopt` first); `fleet remove <name>` unregisters; bare `fleet` (or
 `fleet status`) reports every agent: base version, template, packages,
 managed-file drift, validate errors.
@@ -135,14 +135,14 @@ managed-file drift, validate errors.
   "validate_errors": 0, "validate_warnings": 0}]}
 ```
 
-## `agentloom console`
+## `agentboom console`
 
-Materialize the loomkeeper operator workspace under
-`~/.agentloom/console/` (operator AGENTS.md, `fleet-ops` skill, live
+Materialize the boomkeeper operator workspace under
+`~/.agentboom/console/` (operator AGENTS.md, `fleet-ops` skill, live
 `fleet-snapshot.md`) and exec `qwen` in it. `--dry-run` refreshes the
 workspace without launching. Extra arguments pass through to `qwen`.
 
-## `agentloom skills [dir]` / `agentloom miniapps [dir]`
+## `agentboom skills [dir]` / `agentboom miniapps [dir]`
 
 List an agent's capabilities.
 
@@ -154,16 +154,16 @@ List an agent's capabilities.
   "public": false, "has_main": true, "path": "..."}]}
 ```
 
-## `agentloom list [parent]`
+## `agentboom list [parent]`
 
-Discover agents (directories with `.agentloom.json`) one level down.
+Discover agents (directories with `.agentboom.json`) one level down.
 
 ```json
 {"ok": true, "parent": "...", "agents": [{"name": "...", "path": "...",
   "template": "platform", "base_version": "0.1.0", "created_at": "..."}]}
 ```
 
-## `agentloom doctor`
+## `agentboom doctor`
 
 Toolchain checks. `failed_required` drives the exit code; node/npm/git are
 optional.
@@ -174,7 +174,7 @@ optional.
  "failed_required": []}
 ```
 
-## `agentloom selfcheck`
+## `agentboom selfcheck`
 
 End-to-end QA in a temp dir: init → validate → upgrade check (must be
 clean) → add skill + miniapp → validate again. Run this after changing
@@ -184,7 +184,7 @@ templates.
 {"ok": true, "steps": [{"step": "init", "ok": true, "detail": "..."}]}
 ```
 
-## `agentloom version`
+## `agentboom version`
 
 ```json
 {"ok": true, "version": "0.1.0", "templates": ["platform"],

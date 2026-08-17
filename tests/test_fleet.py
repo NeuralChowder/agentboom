@@ -1,4 +1,4 @@
-"""Tests for adopt, fleet registry, and the loomkeeper console."""
+"""Tests for adopt, fleet registry, and the boomkeeper console."""
 import argparse
 import os
 import pathlib
@@ -6,14 +6,14 @@ import shutil
 import tempfile
 import unittest
 
-_TMP = tempfile.mkdtemp(prefix="agentloom-fleet-tests-")
-os.environ["AGENTLOOM_HOME"] = str(pathlib.Path(_TMP) / "home")
+_TMP = tempfile.mkdtemp(prefix="agentboom-fleet-tests-")
+os.environ["AGENTBOOM_HOME"] = str(pathlib.Path(_TMP) / "home")
 
-from agentloom import fleet as fleet_reg  # noqa: E402
-from agentloom.commands import adopt as adopt_cmd  # noqa: E402
-from agentloom.commands import console as console_cmd  # noqa: E402
-from agentloom.commands import fleetcmd  # noqa: E402
-from agentloom.commands import init as init_cmd  # noqa: E402
+from agentboom import fleet as fleet_reg  # noqa: E402
+from agentboom.commands import adopt as adopt_cmd  # noqa: E402
+from agentboom.commands import console as console_cmd  # noqa: E402
+from agentboom.commands import fleetcmd  # noqa: E402
+from agentboom.commands import init as init_cmd  # noqa: E402
 
 
 def _init(where: pathlib.Path, name: str) -> dict:
@@ -30,12 +30,12 @@ class AdoptTests(unittest.TestCase):
     def test_adopt_matches_untouched_managed_files(self):
         init_result = _init(self.dir / "a1", "a1")
         original = set(init_result["created"]) & set(
-            (self.dir / "a1" / ".agentloom.json").exists() and
+            (self.dir / "a1" / ".agentboom.json").exists() and
             __import__("json").loads(
-                (self.dir / "a1" / ".agentloom.json").read_text()
+                (self.dir / "a1" / ".agentboom.json").read_text()
             )["managed"]
         )
-        (self.dir / "a1" / ".agentloom.json").unlink()
+        (self.dir / "a1" / ".agentboom.json").unlink()
         result = adopt_cmd.run(argparse.Namespace(
             dir=str(self.dir / "a1"), name="a1", description=None,
             template="platform", port_agent=4170, port_platform=8000))
@@ -46,7 +46,7 @@ class AdoptTests(unittest.TestCase):
         _init(self.dir / "a2", "a2")
         gw = self.dir / "a2" / "platform/api_gateway.py"
         gw.write_text(gw.read_text() + "\n# local divergence\n")
-        (self.dir / "a2" / ".agentloom.json").unlink()
+        (self.dir / "a2" / ".agentboom.json").unlink()
         result = adopt_cmd.run(argparse.Namespace(
             dir=str(self.dir / "a2"), name="a2", description=None,
             template="platform", port_agent=4170, port_platform=8000))
@@ -106,7 +106,7 @@ class ConsoleTests(unittest.TestCase):
         self.assertTrue((ws / "skills/fleet-ops/SKILL.md").is_file())
         snap = (ws / "fleet-snapshot.md").read_text()
         self.assertIn("c1", snap)
-        self.assertIn("agentloom", snap)
+        self.assertIn("agentboom", snap)
 
     def test_workspace_refresh_keeps_user_files(self):
         _init(self.dir / "c2", "c2")

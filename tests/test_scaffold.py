@@ -2,9 +2,9 @@
 import argparse
 import json
 
-from agentloom.commands import add as add_cmd
-from agentloom.commands import listcmd
-from agentloom.commands import selfcheck as selfcheck_cmd
+from agentboom.commands import add as add_cmd
+from agentboom.commands import listcmd
+from agentboom.commands import selfcheck as selfcheck_cmd
 
 from helpers import AgentTestCase
 
@@ -43,7 +43,7 @@ class AddMiniappTests(AgentTestCase):
         self.assertEqual(manifest["name"], "my-app")
 
     def test_scaffolded_miniapp_passes_validate(self):
-        from agentloom.commands import validate as validate_cmd
+        from agentboom.commands import validate as validate_cmd
         add_cmd.run_miniapp(_add_args("checked-app", self.agent_dir, "x"))
         result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
         self.assertTrue(result["ok"], result["checks"])

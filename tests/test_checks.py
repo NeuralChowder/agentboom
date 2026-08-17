@@ -1,13 +1,13 @@
 """Unit tests for rendering and structural checks (no filesystem agents)."""
 import unittest
 
-from agentloom.checks import (
+from agentboom.checks import (
     compose_required_vars,
     env_file_vars,
     parse_frontmatter,
     validate_cron,
 )
-from agentloom.render import TemplateError, render_text
+from agentboom.render import TemplateError, render_text
 
 
 class RenderTests(unittest.TestCase):

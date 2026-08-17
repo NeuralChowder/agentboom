@@ -1,0 +1,5 @@
+# Base runtime SDK — installed from agentboom GitHub release assets.
+# Bump this pin (and rebuild) to take base updates.
+agentboom_sdk @ https://github.com/ejbp/agentboom/releases/download/v0.6.0/agentboom_sdk-0.6.0-py3-none-any.whl
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0

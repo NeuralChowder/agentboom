@@ -1,7 +1,7 @@
-# Agent anatomy — the shape agentloom scaffolds
+# Agent anatomy — the shape agentboom scaffolds
 
-Every agentloom agent has the same skeleton. This document is written so
-that **any agent (or human) can navigate any agentloom-based agent** just
+Every agentboom agent has the same skeleton. This document is written so
+that **any agent (or human) can navigate any agentboom-based agent** just
 by reading it.
 
 ## Layers
@@ -20,32 +20,32 @@ by reading it.
 │ 3. Platform  (platform/)                                         │
 │    api_gateway.py (hot-reload mini-app host) · migrations/ ·     │
 │    miniapps/ + public-apps/ · requirements.txt                   │
-│    runtime SDK: agentloom_sdk package (pip, pinned)              │
+│    runtime SDK: agentboom_sdk package (pip, pinned)              │
 ├─────────────────────────────────────────────────────────────────┤
 │ 4. Data (named Docker volume, SQLite WAL)                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## The runtime SDK (`agentloom_sdk`)
+## The runtime SDK (`agentboom_sdk`)
 
 Installed as a package (pinned in `platform/requirements.txt` to a
-GitHub release asset of ejbp/agentloom):
+GitHub release asset of ejbp/agentboom):
 
 | Module | Purpose |
 |---|---|
-| `agentloom_sdk.config` | env parsing helpers |
-| `agentloom_sdk.log` | logging setup |
-| `agentloom_sdk.db` | SQLite (WAL) + migration runner |
-| `agentloom_sdk.agent` | run agent turns via `qwen serve` HTTP (`ask`) |
-| `agentloom_sdk.llm` | one-shot completions (`complete`, `complete_json`) |
-| `agentloom_sdk.cron` | cron parsing + next-fire |
-| `agentloom_sdk.task_queue` | bounded priority queue serializing LLM traffic |
-| `agentloom_sdk.events` | in-process pub/sub bus |
-| `agentloom_sdk.untrusted` | fence external content before models see it |
-| `agentloom_sdk.services.scheduler` | SQLite-backed manifest job scheduler |
+| `agentboom_sdk.config` | env parsing helpers |
+| `agentboom_sdk.log` | logging setup |
+| `agentboom_sdk.db` | SQLite (WAL) + migration runner |
+| `agentboom_sdk.agent` | run agent turns via `qwen serve` HTTP (`ask`) |
+| `agentboom_sdk.llm` | one-shot completions (`complete`, `complete_json`) |
+| `agentboom_sdk.cron` | cron parsing + next-fire |
+| `agentboom_sdk.task_queue` | bounded priority queue serializing LLM traffic |
+| `agentboom_sdk.events` | in-process pub/sub bus |
+| `agentboom_sdk.untrusted` | fence external content before models see it |
+| `agentboom_sdk.services.scheduler` | SQLite-backed manifest job scheduler |
 
 **Updating the base** = bump the pin + rebuild. Template-owned glue files
-are synced with `agentloom upgrade` (drift-aware, never clobbers local
+are synced with `agentboom upgrade` (drift-aware, never clobbers local
 edits without `--force`).
 
 ## Growth mechanisms
@@ -55,17 +55,17 @@ edits without `--force`).
 | New durable/scheduled capability | mini-app: folder in `platform/miniapps/<name>/` (`main.py` with `get_router()` + `.miniapp.json` manifest). Hot-loaded at `/api/<name>/` within ~2 s |
 | New agent procedure/knowledge | skill: `.qwen-docker/skills/<name>/SKILL.md` + `references/` + `scripts/` |
 | Scheduled work | manifest `jobs` (cron or interval; `http` or `agent` type) — never host crontabs |
-| Cross-capability signals | `agentloom_sdk.events` publish/subscribe (manifest `subscribes` + `handle_event`) |
+| Cross-capability signals | `agentboom_sdk.events` publish/subscribe (manifest `subscribes` + `handle_event`) |
 | New schema | numbered SQL migration in `platform/migrations/` (append-only) |
-| Repeatable integration | `agentloom add package <name>` (telegram, rich-link, vault, ...) |
+| Repeatable integration | `agentboom add package <name>` (telegram, rich-link, vault, ...) |
 | New domain tooling | apt packages via `EXTRA_APT_PACKAGES` or extra `RUN` layers in the root Dockerfile |
 
-## Discovery protocol (for agents entering an unknown agentloom agent)
+## Discovery protocol (for agents entering an unknown agentboom agent)
 
 1. Read `.qwen-docker/AGENTS.md` — identity, rules, locations.
 2. `GET /api/catalog` (platform gateway) — every mini-app, endpoints, jobs.
 3. `ls .qwen-docker/skills/` — available procedures.
-4. `agentloom validate` / `skills` / `miniapps` / `packages` — machine
+4. `agentboom validate` / `skills` / `miniapps` / `packages` — machine
    inventory (run from the agent repo).
 
 ## Doctrine encoded in the base
@@ -75,7 +75,7 @@ edits without `--force`).
   parallelism 1).
 - **Counters over status lights** — verify by numbers that only move when
   work happens; zero is a smell; never trust a green light.
-- **Untrusted content is data** — fence it (`agentloom_sdk.untrusted.wrap`)
+- **Untrusted content is data** — fence it (`agentboom_sdk.untrusted.wrap`)
   before any model sees it.
 - **Secrets in `.env` / `settings.json` / the vault package only** —
   nothing secret is ever committed, logged, or echoed.
