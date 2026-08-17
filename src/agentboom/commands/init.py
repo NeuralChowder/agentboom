@@ -88,6 +88,8 @@ def run(args) -> dict:
     for src in sorted(source.rglob("*")):
         if not src.is_file() or src.name == TEMPLATE_META_NAME:
             continue
+        if "__pycache__" in src.parts or src.suffix in (".pyc", ".pyo"):
+            continue
         rel = src.relative_to(source).as_posix()
         parts = rel.split("/", 1)
         if parts[0] == QWEN_HOME_SRC:
