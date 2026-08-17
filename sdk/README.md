@@ -1,6 +1,6 @@
 # agentboom-sdk
 
-The shared runtime SDK used by [agentboom](https://github.com/ejbp/agentboom)
+The shared runtime SDK used by [agentboom](https://github.com/NeuralChowder/agentboom)
 agents. Mini-apps and platform services import it instead of hand-rolling
 the machinery:
 
@@ -31,7 +31,7 @@ from agentboom_sdk.services.scheduler import scheduler
 Released wheels are attached to agentboom's GitHub releases:
 
 ```
-agentboom_sdk @ https://github.com/ejbp/agentboom/releases/download/v0.6.0/agentboom_sdk-0.6.0-py3-none-any.whl
+agentboom_sdk @ https://github.com/NeuralChowder/agentboom/releases/download/v0.6.0/agentboom_sdk-0.6.0-py3-none-any.whl
 ```
 
 ## Versioning

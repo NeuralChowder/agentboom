@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentboom-sdk"
-version = "0.6.1"
+version = "0.6.2"
 description = "Shared runtime SDK for agentboom-based agents: SQLite data layer, qwen-serve agent client, LLM completions, cron, task queue, event bus, and the manifest job scheduler."
 readme = "README.md"
 requires-python = ">=3.10"

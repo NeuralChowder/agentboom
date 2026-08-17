@@ -34,7 +34,7 @@ Two distributables, one version:
 ```bash
 pipx install .            # the agentboom command
 # or straight from a GitHub release:
-pipx install "agentboom @ https://github.com/ejbp/agentboom/releases/download/v0.2.0/agentboom-0.2.0-py3-none-any.whl"
+pipx install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.2.0/agentboom-0.2.0-py3-none-any.whl"
 ```
 
 ## Quickstart
