@@ -1,7 +1,7 @@
 name: Release
 
-# Two-step pipeline: build both packages, then publish them as GitHub
-# Release assets. Install a release with:
+# Two-step pipeline on the repo's self-hosted runner: build both packages,
+# then publish them as GitHub Release assets. Install a release with:
 #   pip install https://github.com/ejbp/agentboom/releases/download/<tag>/agentboom_sdk-<ver>-py3-none-any.whl
 
 on:
@@ -10,32 +10,30 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install build tooling
-        run: pip install build
-
       - name: Build agentboom + agentboom-sdk (wheel + sdist)
         run: |
-          python -m build . --outdir dist/
-          python -m build sdk/ --outdir dist/
+          set -euo pipefail
+          VENV="$RUNNER_TEMP/ab-rel-venv"
+          rm -rf "$VENV" "$RUNNER_TEMP/dist"
+          python3 -m venv "$VENV"
+          "$VENV/bin/pip" install -q build
+          "$VENV/bin/python" -m build . --outdir "$RUNNER_TEMP/dist/"
+          "$VENV/bin/python" -m build sdk/ --outdir "$RUNNER_TEMP/dist/"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/*
+          path: ${{ runner.temp }}/dist/*
           if-no-files-found: error
 
   publish:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
     permissions:
       contents: write
     steps:
