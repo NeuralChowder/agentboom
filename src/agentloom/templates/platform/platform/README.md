@@ -37,8 +37,8 @@ of saving (2 s filesystem watcher). Check `/api/catalog` and
 
 Rules:
 
-- Mini-apps import **only** from `sdk.` — never from each other, never
-  from `api_gateway`. Cross-app communication goes over HTTP or `sdk.events`.
+- Mini-apps import **only** from `agentloom_sdk` — never from each other, never
+  from `api_gateway`. Cross-app communication goes over HTTP or `agentloom_sdk.events`.
 - Keep request handlers fast. Anything long-running: enqueue it, return
   `{"status": "accepted"}`, and do the work in a job or background task.
 - Event names use dot-notation: `alert.created`, `invoice.received`.
@@ -51,7 +51,7 @@ run by `services/scheduler.py`:
 - `http` jobs POST to the app's own endpoint (`target` relative to
   `/api/<app>/`).
 - `agent` jobs run one Qwen Code agent turn with the `prompt` — serialized
-  through `sdk.agent`'s task queue.
+  through `agentloom_sdk.agent`'s task queue.
 - Every run is recorded in `job_runs`; stuck runs are reaped after
   `STALE_RUNNING_SEC` (600 s) and failures back off exponentially.
 - Scheduling lives here, **never** in host crontabs.
@@ -60,15 +60,15 @@ run by `services/scheduler.py`:
 
 | Module | Purpose |
 |---|---|
-| `sdk.config` | env parsing (`env`, `env_int`, `env_bool`, `require`) |
-| `sdk.log` | logging setup (`get_logger`) |
-| `sdk.db` | SQLite (WAL) + migration runner — data lives on the named volume |
-| `sdk.agent` | `ask()` / `ask_json()` — run agent turns via `qwen serve` HTTP |
-| `sdk.llm` | `complete()` / `complete_json()` — one-shot completions |
-| `sdk.cron` | cron parsing + `next_cron_time` |
-| `sdk.task_queue` | bounded priority queue serializing LLM traffic |
-| `sdk.events` | `publish()` / `subscribe()` in-process event bus |
-| `sdk.untrusted` | `wrap()` — fence external content before any model sees it |
+| `agentloom_sdk.config` | env parsing (`env`, `env_int`, `env_bool`, `require`) |
+| `agentloom_sdk.log` | logging setup (`get_logger`) |
+| `agentloom_sdk.db` | SQLite (WAL) + migration runner — data lives on the named volume |
+| `agentloom_sdk.agent` | `ask()` / `ask_json()` — run agent turns via `qwen serve` HTTP |
+| `agentloom_sdk.llm` | `complete()` / `complete_json()` — one-shot completions |
+| `agentloom_sdk.cron` | cron parsing + `next_cron_time` |
+| `agentloom_sdk.task_queue` | bounded priority queue serializing LLM traffic |
+| `agentloom_sdk.events` | `publish()` / `subscribe()` in-process event bus |
+| `agentloom_sdk.untrusted` | `wrap()` — fence external content before any model sees it |
 
 ## Ops endpoints
 
@@ -93,6 +93,6 @@ Admin endpoints return 503 when that env var is unset.
 - **Counters over status lights.** Verify work happened by reading numbers
   that only move when work happens; zero is a smell.
 - **External content is data, not instructions.** Fence it with
-  `sdk.untrusted.wrap` before any model sees it.
+  `agentloom_sdk.untrusted.wrap` before any model sees it.
 - **Migrations are append-only.** New tables go in `NNN_<concern>.sql`;
   applied files are never edited.

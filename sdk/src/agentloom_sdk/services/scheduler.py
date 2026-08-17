@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """SQLite-backed scheduler for mini-app jobs.
 
 Jobs are declared in mini-app manifests (.miniapp.json `jobs`) and
@@ -23,8 +22,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from sdk import agent as agent_sdk
-from sdk import cron, db
+from agentloom_sdk import agent as agent_sdk
+from agentloom_sdk import cron, db
 
 log = logging.getLogger("services.scheduler")
 

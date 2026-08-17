@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """In-process event bus for cross-mini-app communication.
 
 Mini-apps publish domain events; other mini-apps subscribe in their
@@ -10,7 +9,7 @@ import asyncio
 import logging
 from typing import Any, Callable, Coroutine, Dict, List
 
-log = logging.getLogger("sdk.events")
+log = logging.getLogger("agentloom_sdk.events")
 
 Handler = Callable[[Dict[str, Any]], Coroutine]
 _subscribers: Dict[str, List[Handler]] = {}

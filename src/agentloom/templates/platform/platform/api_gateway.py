@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """{{AGENT_TITLE}} — platform gateway.
 
 Hot-reload host for mini-apps: drop a folder with main.py into miniapps/
@@ -32,8 +31,8 @@ from fastapi.routing import APIRoute
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.routing import Mount
 
-from sdk import db, events
-from sdk.log import get_logger
+from agentloom_sdk import db, events
+from agentloom_sdk.log import get_logger
 
 log = get_logger("api_gateway")
 
@@ -205,7 +204,7 @@ async def _reload_apps(force: bool = False) -> Dict[str, Any]:
         for name in list(LOADS):
             if name not in live_dirs:
                 _unmount(f"/api/{name}")
-                from services.scheduler import scheduler
+                from agentloom_sdk.services.scheduler import scheduler
                 await scheduler.unregister_app(name)
                 del LOADS[name]
                 log.info("Unloaded removed mini-app: %s", name)
@@ -218,7 +217,7 @@ async def _reload_apps(force: bool = False) -> Dict[str, Any]:
                 entry = _load_app(root_key, app_dir)
                 LOADS[app_dir.name] = entry
                 if entry["mounted"]:
-                    from services.scheduler import scheduler
+                    from agentloom_sdk.services.scheduler import scheduler
                     await scheduler.register_jobs(
                         app_dir.name, entry["manifest"].get("jobs", [])
                     )
@@ -246,7 +245,7 @@ async def _reload_loop() -> None:
 async def lifespan(_: FastAPI):
     await db.run_migrations()
     await _reload_apps(force=True)
-    from services.scheduler import scheduler
+    from agentloom_sdk.services.scheduler import scheduler
     await scheduler.start()
     reload_task = asyncio.create_task(_reload_loop(), name="reload_watcher")
     log.info("Gateway ready (%s)", ", ".join(sorted(LOADS)) or "no mini-apps yet")
@@ -337,7 +336,7 @@ async def agent_brief():
 
 @app.get("/admin/status", dependencies=[Depends(require_admin)])
 async def admin_status():
-    from services.scheduler import scheduler
+    from agentloom_sdk.services.scheduler import scheduler
     from sdk.task_queue import queue as task_queue
     load_errors = {n: e["error"] for n, e in LOADS.items() if e["error"]}
     return {

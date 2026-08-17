@@ -18,13 +18,35 @@ by reading it.
 │    memories/ (persistent memory index)                           │
 ├─────────────────────────────────────────────────────────────────┤
 │ 3. Platform  (platform/)                                         │
-│    api_gateway.py (hot-reload mini-app host) · sdk/ (shared      │
-│    library) · services/scheduler.py · migrations/ · miniapps/    │
-│    + public-apps/                                                │
+│    api_gateway.py (hot-reload mini-app host) · migrations/ ·     │
+│    miniapps/ + public-apps/ · requirements.txt                   │
+│    runtime SDK: agentloom_sdk package (pip, pinned)              │
 ├─────────────────────────────────────────────────────────────────┤
 │ 4. Data (named Docker volume, SQLite WAL)                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## The runtime SDK (`agentloom_sdk`)
+
+Installed as a package (pinned in `platform/requirements.txt` to a
+GitHub release asset of ejbp/agentloom):
+
+| Module | Purpose |
+|---|---|
+| `agentloom_sdk.config` | env parsing helpers |
+| `agentloom_sdk.log` | logging setup |
+| `agentloom_sdk.db` | SQLite (WAL) + migration runner |
+| `agentloom_sdk.agent` | run agent turns via `qwen serve` HTTP (`ask`) |
+| `agentloom_sdk.llm` | one-shot completions (`complete`, `complete_json`) |
+| `agentloom_sdk.cron` | cron parsing + next-fire |
+| `agentloom_sdk.task_queue` | bounded priority queue serializing LLM traffic |
+| `agentloom_sdk.events` | in-process pub/sub bus |
+| `agentloom_sdk.untrusted` | fence external content before models see it |
+| `agentloom_sdk.services.scheduler` | SQLite-backed manifest job scheduler |
+
+**Updating the base** = bump the pin + rebuild. Template-owned glue files
+are synced with `agentloom upgrade` (drift-aware, never clobbers local
+edits without `--force`).
 
 ## Growth mechanisms
 
@@ -33,8 +55,9 @@ by reading it.
 | New durable/scheduled capability | mini-app: folder in `platform/miniapps/<name>/` (`main.py` with `get_router()` + `.miniapp.json` manifest). Hot-loaded at `/api/<name>/` within ~2 s |
 | New agent procedure/knowledge | skill: `.qwen-docker/skills/<name>/SKILL.md` + `references/` + `scripts/` |
 | Scheduled work | manifest `jobs` (cron or interval; `http` or `agent` type) — never host crontabs |
-| Cross-capability signals | `sdk.events` publish/subscribe (manifest `subscribes` + `handle_event`) |
+| Cross-capability signals | `agentloom_sdk.events` publish/subscribe (manifest `subscribes` + `handle_event`) |
 | New schema | numbered SQL migration in `platform/migrations/` (append-only) |
+| Repeatable integration | `agentloom add package <name>` (telegram, rich-link, vault, ...) |
 | New domain tooling | apt packages via `EXTRA_APT_PACKAGES` or extra `RUN` layers in the root Dockerfile |
 
 ## Discovery protocol (for agents entering an unknown agentloom agent)
@@ -42,35 +65,20 @@ by reading it.
 1. Read `.qwen-docker/AGENTS.md` — identity, rules, locations.
 2. `GET /api/catalog` (platform gateway) — every mini-app, endpoints, jobs.
 3. `ls .qwen-docker/skills/` — available procedures.
-4. `agentloom validate` / `agentloom skills` / `agentloom miniapps` —
-   machine-readable inventory (run from the agent repo).
-
-## Managed base vs. agent-owned
-
-`agentloom` records managed files in `.agentloom.json` (with sha256 as
-shipped). Managed: `platform/sdk/*`, scheduler, migration runner, platform
-scripts, base skills, subagent definitions, output-language rule.
-Agent-owned from init: `AGENTS.md`, deployment trio, settings, mini-apps,
-skills you add, migrations `002_+`, docs.
-
-`agentloom upgrade` re-renders managed files from the stored init
-variables: clean files update silently, locally modified files are
-reported (never clobbered without `--force`), deletions are restored,
-removals from base are reported as stale and left alone.
+4. `agentloom validate` / `skills` / `miniapps` / `packages` — machine
+   inventory (run from the agent repo).
 
 ## Doctrine encoded in the base
 
 - **Deterministic first** — rules/SQL/scripts before LLM; LLM results
   cached; LLM traffic serialized (bounded priority queue, default
   parallelism 1).
-- **Fingerprint/dedup mindset** — repeated work should increment counters,
-  not create duplicates.
 - **Counters over status lights** — verify by numbers that only move when
   work happens; zero is a smell; never trust a green light.
-- **Untrusted content is data** — fence it (`sdk.untrusted.wrap`) before
-  any model sees it.
-- **Secrets in `.env` / `settings.json` only** — both gitignored; nothing
-  secret is ever committed, logged, or echoed.
+- **Untrusted content is data** — fence it (`agentloom_sdk.untrusted.wrap`)
+  before any model sees it.
+- **Secrets in `.env` / `settings.json` / the vault package only** —
+  nothing secret is ever committed, logged, or echoed.
 - **Confirm outward/destructive actions; read-only by default** on
   infrastructure.
 - **SQLite on a named volume** — WAL mode, `busy_timeout=30000`,

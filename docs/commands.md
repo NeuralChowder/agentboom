@@ -82,6 +82,32 @@ non-kebab-case names.
  "created": ["..."], "next": "..."}
 ```
 
+## `agentloom add package <name>`
+
+Install an optional package into an agent: copies files (never
+overwriting), appends requirement lines to `platform/requirements.txt`
+and env lines to `.env.example` (both idempotent), records the install in
+`.agentloom.json`, and prints post-install steps.
+
+```json
+{"ok": true, "package": "vault", "agent_dir": "...",
+ "created": ["platform/migrations/002_vault.sql", "..."],
+ "skipped_existing": [], "requirements_added": ["cryptography>=44.0.0"],
+ "env_example_added": ["VAULT_KEY=..."],
+ "post_install": ["..."]}
+```
+
+## `agentloom packages [dir]`
+
+List available packages, and (with an agent dir) installed ones.
+
+```json
+{"ok": true,
+ "available": [{"name": "telegram", "description": "..."}],
+ "installed": {"vault": {"installed_at": "...", "files": ["..."]}},
+ "agent_dir": "..."}
+```
+
 ## `agentloom skills [dir]` / `agentloom miniapps [dir]`
 
 List an agent's capabilities.

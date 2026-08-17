@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """One-shot LLM completions (OpenAI-compatible gateway).
 
 For bounded tasks: extract fields, categorize, summarize, draft.
@@ -18,9 +17,9 @@ from typing import Dict, List, Optional
 
 import httpx
 
-from sdk.task_queue import TaskPriority, queue as task_queue
+from agentloom_sdk.task_queue import TaskPriority, queue as task_queue
 
-log = logging.getLogger("sdk.llm")
+log = logging.getLogger("agentloom_sdk.llm")
 
 BASE_URL = os.environ.get("LLM_BASE_URL")
 API_KEY = os.environ.get("LLM_API_KEY", "")

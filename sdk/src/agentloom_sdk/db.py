@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """SQLite database access layer.
 
 Singleton aiosqlite connection tuned for containers:
@@ -19,9 +18,9 @@ from typing import Any, Dict, List, Optional
 
 import aiosqlite
 
-from sdk.config import env
+from agentloom_sdk.config import env
 
-log = logging.getLogger("sdk.db")
+log = logging.getLogger("agentloom_sdk.db")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(env("DATA_DIR", str(BASE_DIR.parent / "data")))

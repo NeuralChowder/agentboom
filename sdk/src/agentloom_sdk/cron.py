@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Standard 5-field cron expression parser and next-fire computation.
 
 Fields: minute hour day-of-month month day-of-week (0 = Sunday).
@@ -12,7 +11,7 @@ import datetime
 import logging
 from typing import List, Optional, Set
 
-log = logging.getLogger("sdk.cron")
+log = logging.getLogger("agentloom_sdk.cron")
 
 
 class CronError(ValueError):

@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Environment helpers — one place for env parsing and requirements."""
 import os
 from typing import Optional

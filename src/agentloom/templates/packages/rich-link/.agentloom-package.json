@@ -1,0 +1,18 @@
+{
+  "name": "rich-link",
+  "description": "Long answers as mobile-friendly HTML pages: shortlinks mini-app + rich-link skill.",
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── Rich links (package: rich-link) ──",
+    "# Base URL used when composing shareable links.",
+    "LOCAL_BASE_URL=http://127.0.0.1:{{PORT_PLATFORM}}",
+    "# Set when the platform is published through a reverse proxy/tunnel.",
+    "PUBLIC_BASE_URL="
+  ],
+  "post_install": [
+    "The shortlinks mini-app hot-loads at /api/shortlinks/ (verify via /api/catalog).",
+    "Pages are stored under the data volume (shortlinks/); serve them from PUBLIC_BASE_URL when exposing externally.",
+    "Only expose /api/shortlinks/p/* through any reverse proxy — never the admin endpoints."
+  ]
+}

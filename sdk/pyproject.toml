@@ -3,33 +3,29 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentloom"
+name = "agentloom-sdk"
 version = "0.2.0"
-description = "Scaffold, maintain, and upgrade autonomous agent projects from a shared, upgradable base (Qwen Code agent home + Python mini-app platform + Docker deployment)."
+description = "Shared runtime SDK for agentloom-based agents: SQLite data layer, qwen-serve agent client, LLM completions, cron, task queue, event bus, and the manifest job scheduler."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Eduardo Pinheiro" }]
-keywords = ["agents", "scaffold", "template", "cli", "qwen-code", "miniapps"]
+keywords = ["agents", "sdk", "qwen-code", "scheduler", "miniapps"]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
-
-[project.scripts]
-agentloom = "agentloom.cli:main"
+dependencies = [
+    "httpx>=0.28.0",
+    "aiosqlite>=0.20.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/ejbp/agentloom"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-agentloom = ["templates/**/*", "templates/**/.*"]

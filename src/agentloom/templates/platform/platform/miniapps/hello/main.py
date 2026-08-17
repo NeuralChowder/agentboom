@@ -9,7 +9,7 @@ import logging
 
 from fastapi import APIRouter
 
-from sdk import events
+from agentloom_sdk import events
 
 log = logging.getLogger("miniapps.hello")
 

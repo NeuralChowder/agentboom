@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Run database migrations. Called at container startup."""
 import asyncio
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from sdk.db import close, run_migrations  # noqa: E402
+from agentloom_sdk.db import close, run_migrations
 
 
 async def main():

@@ -1,0 +1,20 @@
+{
+  "name": "vault",
+  "description": "Encrypted credential store (AES-256-GCM in SQLite) with audit logging — secrets out of code and env files.",
+  "requirements": [
+    "cryptography>=44.0.0"
+  ],
+  "env_example": [
+    "",
+    "# ── Credential vault (package: vault) ──",
+    "# Master key for AES-256-GCM. Generate: openssl rand -hex 32",
+    "# WARNING: losing this key makes every stored credential unrecoverable.",
+    "VAULT_KEY="
+  ],
+  "post_install": [
+    "Set VAULT_KEY in .env (openssl rand -hex 32). Back it up somewhere safe — it cannot be recovered.",
+    "Restart the platform: docker compose restart endpoint-platform (applies migration 002_vault.sql).",
+    "Store credentials with PUT /api/vault/credentials/<service>; reads are audit-logged.",
+    "The vault is only as protected as the platform port: keep it loopback-only or behind an allowlist proxy."
+  ]
+}

@@ -10,7 +10,7 @@
                     │  agents, memories, settings   │
                     └───────▲──────────────┬────────┘
                             │              │
-              sdk.agent.ask │              │ HTTP (mini-app endpoints)
+              agentloom_sdk.agent.ask │              │ HTTP (mini-app endpoints)
             (sessions+SSE)  │              │
                     ┌───────┴──────────────▼────────┐
                     │ endpoint-platform              │
@@ -25,7 +25,7 @@
   repo's `.qwen-docker/` as its home. It reads `AGENTS.md`, uses skills,
   and can call any mini-app endpoint over HTTP.
 - **endpoint-platform** is the body: deterministic services, storage, and
-  schedules. It can start agent turns over HTTP (`sdk.agent.ask`) for
+  schedules. It can start agent turns over HTTP (`agentloom_sdk.agent.ask`) for
   work that needs judgement — e.g. an `agent`-type scheduled job.
 
 Both share `QWEN_SERVER_TOKEN` (bearer auth) and the SQLite data volume.
@@ -37,7 +37,7 @@ Both share `QWEN_SERVER_TOKEN` (bearer auth) and the SQLite data volume.
 turn → result recorded in `job_runs`.
 
 **Agent-initiated work:** agent (you) → `GET /api/catalog` to discover →
-mini-app endpoints for data/actions → `sdk.db` for direct reads when
+mini-app endpoints for data/actions → `agentloom_sdk.db` for direct reads when
 appropriate.
 
 **Growth:** drop a folder in `platform/miniapps/` → watcher digest
@@ -60,7 +60,7 @@ re-registered. No restart at any point.
   constant-time compare).
 - Secrets live in `.env` / `settings.json` — both gitignored.
 - External content (email, web, documents) is fenced with
-  `sdk.untrusted.wrap` before any model sees it: data, never instructions.
+  `agentloom_sdk.untrusted.wrap` before any model sees it: data, never instructions.
 - The agent container runs as a non-root user; mounts of infrastructure
   (if you add any) should be read-only by default.
 

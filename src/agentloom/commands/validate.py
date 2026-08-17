@@ -23,7 +23,6 @@ REQUIRED_FILES = [
     "platform/api_gateway.py",
     "platform/requirements.txt",
     "platform/Dockerfile",
-    "platform/sdk/__init__.py",
     "platform/migrations/run.py",
 ]
 
@@ -51,6 +50,18 @@ def run(args) -> dict:
     for rel in REQUIRED_FILES:
         if not (agent_dir / rel).is_file():
             _check(checks, "error", "structure.missing-file", f"Missing required file: {rel}", rel)
+
+    # ── SDK dependency pin ────────────────────────────────────────
+    reqs = agent_dir / "platform" / "requirements.txt"
+    if reqs.is_file():
+        req_text = reqs.read_text(encoding="utf-8")
+        if "agentloom-sdk" not in req_text and "agentloom_sdk" not in req_text:
+            _check(
+                checks, "warn", "deps.sdk-not-pinned",
+                "platform/requirements.txt does not reference agentloom-sdk — "
+                "the base runtime SDK is normally installed as a package.",
+                "platform/requirements.txt",
+            )
 
     # ── entrypoint.sh must not reference missing scripts ─────────
     entrypoint = agent_dir / "entrypoint.sh"

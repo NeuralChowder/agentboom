@@ -5,33 +5,31 @@ evolving base.**
 
 agentloom turns the anatomy that production agents converge on — an agent
 home (operating manual, skills, subagents), a Python mini-app platform
-(hot-reload gateway, SDK, SQLite-backed scheduler), and a Docker deployment
-— into a single command:
+(hot-reload gateway + SQLite-backed scheduler), and a Docker deployment —
+into a single command:
 
 ```bash
 agentloom init my-agent
 ```
 
 New capabilities then arrive as folders, not redeploys: **mini-apps** for
-durable/scheduled work, **skills** for agent procedures. When the base
-itself improves, `agentloom upgrade` syncs the managed files across every
-agent — with drift detection, so nobody's local edits get clobbered.
+durable/scheduled work, **skills** for agent procedures. The shared runtime
+machinery ships as the **`agentloom-sdk`** package: bump one pin in
+`requirements.txt`, rebuild, and every agent takes the base update.
 
-Pure Python stdlib. No runtime dependencies — agents and CI can run it
-anywhere `python3 >= 3.10` exists.
+Two distributables, one version:
+
+| Package | What it is |
+|---|---|
+| `agentloom` | the CLI: scaffolds and maintains agents (pure stdlib, zero deps) |
+| `agentloom-sdk` | the runtime SDK agents import (`agentloom_sdk.*`) |
 
 ## Install
 
-From a checkout (zero-install):
-
 ```bash
-./bin/agentloom --help
-```
-
-Or install the `agentloom` command:
-
-```bash
-pipx install .        # or: pip install .
+pipx install .            # the agentloom command
+# or straight from a GitHub release:
+pipx install "agentloom @ https://github.com/ejbp/agentloom/releases/download/v0.2.0/agentloom-0.2.0-py3-none-any.whl"
 ```
 
 ## Quickstart
@@ -50,17 +48,31 @@ docker compose logs -f qwen-agent
 | Command | What it does |
 |---|---|
 | `agentloom init <dir>` | scaffold a new agent from the base template |
-| `agentloom validate [dir]` | structural health checks (required files, manifests, cron, env coverage, drift) |
+| `agentloom validate [dir]` | structural health checks (files, manifests, cron, env coverage, drift) |
 | `agentloom upgrade [dir]` | check/apply sync of managed base files (`--apply`, `--force`) |
-| `agentloom add skill <name>` | scaffold a skill inside an agent |
-| `agentloom add miniapp <name>` | scaffold a mini-app inside an agent |
-| `agentloom skills [dir]` / `miniapps [dir]` | list capabilities of an agent |
+| `agentloom add skill\|miniapp <name>` | scaffold a capability inside an agent |
+| `agentloom add package <name>` | install an optional package (see below) |
+| `agentloom packages [dir]` | list available/installed packages |
+| `agentloom skills [dir]` / `miniapps [dir]` | list an agent's capabilities |
 | `agentloom list [parent]` | discover agentloom agents under a directory |
 | `agentloom doctor` | environment checks (python, docker, compose, node) |
 | `agentloom selfcheck` | end-to-end QA of the templates in a temp dir |
 
 Every command supports `--json` for machine-readable output (stable payload
 shape, meaningful exit codes) — see `docs/commands.md`.
+
+## Optional packages
+
+The base stays lean; repeatable integrations ship as packages installed
+into any agent with `agentloom add package <name>`:
+
+| Package | Adds |
+|---|---|
+| `telegram` | interactive Telegram channel wiring (docs + env) |
+| `rich-link` | shortlinks mini-app + skill: long answers as mobile-friendly HTML pages |
+| `vault` | AES-256-GCM credential store mini-app + migration + manager skill |
+
+Scheduling/routines are already in the base (manifest jobs + scheduler).
 
 ## What's in the base
 
@@ -72,23 +84,22 @@ my-agent/
 │   ├── AGENTS.md                                   # ★ the agent's operating manual
 │   ├── settings.example.json                       # models / MCP / channels
 │   ├── agents/                                     # coder, web-explorer, text-analyst, ...
-│   ├── skills/                                     # base skills (managed, upgradable)
+│   ├── skills/                                     # base skills
 │   └── memories/
 └── platform/                                       # mini-app platform
     ├── api_gateway.py                              # hot-reload mini-app host
-    ├── sdk/                                        # db, agent, llm, cron, task_queue, events, ...
-    ├── services/scheduler.py                       # SQLite-backed manifest job scheduler
+    ├── requirements.txt                            # ★ pins agentloom-sdk
     ├── migrations/                                 # numbered SQL migrations
     └── miniapps/hello/                             # working example capability
 ```
 
-**Managed vs. user-owned:** files that belong to the shared base (SDK,
-scheduler, migration runner, base skills, subagent definitions, ...) are
-recorded in `.agentloom.json` with content hashes. `agentloom upgrade`
-re-renders them from the template, overwrites clean copies, reports
-locally-modified ones, restores deleted ones, and never deletes anything.
-Everything else — `AGENTS.md`, compose, mini-apps, your migrations — is
-yours from `init` onward.
+**Update model.** The SDK (db, agent client, llm, cron, task queue, event
+bus, scheduler, untrusted-content fencing) is the `agentloom-sdk` wheel,
+pinned in `platform/requirements.txt` to a GitHub release asset. Updating
+the base = bump the pin + `docker compose up -d --build`. Template-owned
+files (gateway, entrypoint scripts, base skills, subagents) are recorded in
+`.agentloom.json` and synced with `agentloom upgrade` — with drift
+detection, so nobody's local edits get clobbered.
 
 The SDK encodes hard-won production doctrine: SQLite with WAL +
 `busy_timeout` on a named volume (bind mounts corrupt WAL), LLM traffic
@@ -99,12 +110,13 @@ reaping, exponential backoff. See `docs/anatomy.md`.
 ## Development
 
 ```bash
-python3 tests/run_tests.py      # 32 tests, stdlib only
+python3 tests/run_tests.py      # 40 tests, stdlib only
 python3 bin/agentloom selfcheck # end-to-end template QA
 ```
 
-Templates live in `src/agentloom/templates/`. Read `AGENTS.md` (this repo)
-before changing them. Roadmap: `docs/roadmap.md`.
+Repo layout: `src/agentloom/` (CLI), `sdk/` (the agentloom-sdk package),
+`src/agentloom/templates/` (agent template + packages). Read `AGENTS.md`
+before changing templates. Roadmap: `docs/roadmap.md`.
 
 ## License
 

@@ -1,9 +1,8 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Bounded async task queue for LLM-bound work.
 
 Prevents model-gateway bursting by serializing requests through a bounded
-priority queue + semaphore. Agent asks (sdk.agent) and one-shot completions
-(sdk.llm) share this queue, so all LLM traffic waits its turn — default
+priority queue + semaphore. Agent asks (agentloom_sdk.agent) and one-shot completions
+(agentloom_sdk.llm) share this queue, so all LLM traffic waits its turn — default
 parallelism is 1.
 """
 import asyncio
@@ -14,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Coroutine, Dict, Optional
 
-log = logging.getLogger("sdk.task_queue")
+log = logging.getLogger("agentloom_sdk.task_queue")
 
 
 class TaskPriority(Enum):

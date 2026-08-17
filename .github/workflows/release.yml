@@ -1,0 +1,54 @@
+name: Release
+
+# Two-step pipeline: build both packages, then publish them as GitHub
+# Release assets. Install a release with:
+#   pip install https://github.com/ejbp/agentloom/releases/download/<tag>/agentloom_sdk-<ver>-py3-none-any.whl
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: pip install build
+
+      - name: Build agentloom + agentloom-sdk (wheel + sdist)
+        run: |
+          python -m build . --outdir dist/
+          python -m build sdk/ --outdir dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Create GitHub Release with package assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

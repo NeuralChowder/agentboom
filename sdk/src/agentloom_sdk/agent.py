@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Ask the Qwen Code agent (`qwen serve` HTTP API) for judgement tasks.
 
 Use for multi-step work needing tools/judgement. For simple one-shot
@@ -24,9 +23,9 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from sdk.task_queue import TaskPriority, queue as task_queue
+from agentloom_sdk.task_queue import TaskPriority, queue as task_queue
 
-log = logging.getLogger("sdk.agent")
+log = logging.getLogger("agentloom_sdk.agent")
 
 QWEN_AGENT_URL = os.environ.get("QWEN_AGENT_URL", "http://127.0.0.1:4170")
 QWEN_SERVER_TOKEN = os.environ.get("QWEN_SERVER_TOKEN", "")
@@ -182,7 +181,7 @@ async def ask_json(
     retries: int = 1,
 ) -> Optional[dict]:
     """Ask and parse a JSON object answer."""
-    from sdk.llm import extract_json
+    from agentloom_sdk.llm import extract_json
 
     _JSON_REMINDER = "\n\nReply with JSON only."
     for attempt in range(retries + 1):

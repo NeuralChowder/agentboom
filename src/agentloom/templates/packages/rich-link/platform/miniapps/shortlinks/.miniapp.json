@@ -1,0 +1,17 @@
+{
+  "name": "shortlinks",
+  "description": "Stores self-contained HTML pages and serves them at /p/<slug> with expiry (rich-link package).",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {
+      "name": "cleanup",
+      "type": "http",
+      "target": "cleanup/run",
+      "cron": "17 * * * *",
+      "enabled": true
+    }
+  ],
+  "subscribes": [],
+  "ui": null
+}

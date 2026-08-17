@@ -24,7 +24,7 @@ If a capability already exists, consume or extend it — never duplicate.
   It may also export `async def handle_event(event)` for subscriptions.
 - `.miniapp.json` manifest: `name`, `description`, `version`, `status`,
   `jobs[]`, `subscribes[]`, `ui`.
-- Import **only** from `sdk.` — never other mini-apps, never the gateway.
+- Import **only** from `agentloom_sdk.` — never other mini-apps, never the gateway.
 
 ### Jobs (scheduling)
 
@@ -41,7 +41,7 @@ If a capability already exists, consume or extend it — never duplicate.
 ### Events
 
 `subscribes: ["some.event"]` + `handle_event(event)` receives in-process
-events published with `await sdk.events.publish("some.event", {...})`.
+events published with `await agentloom_sdk.events.publish("some.event", {...})`.
 
 ## Build loop
 

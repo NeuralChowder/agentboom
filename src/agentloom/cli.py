@@ -15,6 +15,7 @@ from agentloom.commands import add as add_cmd
 from agentloom.commands import doctor as doctor_cmd
 from agentloom.commands import init as init_cmd
 from agentloom.commands import listcmd
+from agentloom.commands import packages as packages_cmd
 from agentloom.commands import selfcheck as selfcheck_cmd
 from agentloom.commands import upgrade as upgrade_cmd
 from agentloom.commands import validate as validate_cmd
@@ -58,13 +59,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true",
                    help="with --apply: overwrite locally modified managed files")
 
-    p = sub.add_parser("add", parents=[common], help="scaffold a skill or mini-app")
+    p = sub.add_parser("add", parents=[common],
+                       help="scaffold a skill, mini-app, or optional package")
     add_sub = p.add_subparsers(dest="add_kind", required=True)
     for kind, runner in (("skill", "run_skill"), ("miniapp", "run_miniapp")):
         sp = add_sub.add_parser(kind, help=f"scaffold a new {kind} inside an agent")
         sp.add_argument("name", help=f"{kind} name in kebab-case")
         sp.add_argument("--description", help="one-line description")
         sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
+    sp = add_sub.add_parser("package", help="install an optional package into an agent")
+    sp.add_argument("name", help="package name (see `agentloom packages`)")
+    sp.add_argument("--dir", default=".", help="agent directory (default: cwd)")
+
+    p = sub.add_parser("packages", parents=[common],
+                       help="list available packages and those installed in an agent")
+    p.add_argument("dir", nargs="?", default=None, help="agent directory (optional)")
 
     p = sub.add_parser("skills", parents=[common], help="list skills in an agent")
     p.add_argument("dir", nargs="?", default=".", help="agent directory (default: cwd)")
@@ -155,8 +164,35 @@ def _print_human(command: str, result: dict) -> None:
             print(f"{app['name']}{pub} v{app['version']} ({app['status']}, "
                   f"{app['jobs']} jobs) — {app['description']}")
     elif command == "add":
-        print(f"Created {result['kind']} '{result['name']}' at {result['path']}")
-        print(f"Next: {result['next']}")
+        if "package" in result:
+            print(f"Installed package '{result['package']}' into {result['agent_dir']}")
+            for rel in result["created"]:
+                print(f"  + {rel}")
+            for rel in result["skipped_existing"]:
+                print(f"  = {rel} (already existed)")
+            for line in result["requirements_added"]:
+                print(f"  + requirements: {line}")
+            for line in result["env_example_added"]:
+                print(f"  + .env.example: {line.split('=')[0]}")
+            if result["post_install"]:
+                print("Post-install steps:")
+                for line in result["post_install"]:
+                    print(f"  - {line}")
+        else:
+            print(f"Created {result['kind']} '{result['name']}' at {result['path']}")
+            print(f"Next: {result['next']}")
+    elif command == "packages":
+        print("Available packages:")
+        for pkg in result["available"]:
+            print(f"  {pkg['name']} — {pkg['description']}")
+        if result["agent_dir"]:
+            installed = result["installed"]
+            if installed:
+                print(f"Installed in {result['agent_dir']}:")
+                for name in sorted(installed):
+                    print(f"  {name} (since {installed[name]['installed_at']})")
+            else:
+                print(f"None installed in {result['agent_dir']}")
     elif command == "selfcheck":
         for step in result["steps"]:
             flag = "ok  " if step["ok"] else "FAIL"
@@ -181,8 +217,14 @@ def main(argv=None) -> int:
         elif args.command == "upgrade":
             result = upgrade_cmd.run(args)
         elif args.command == "add":
-            runner = add_cmd.run_skill if args.add_kind == "skill" else add_cmd.run_miniapp
-            result = runner(args)
+            if args.add_kind == "skill":
+                result = add_cmd.run_skill(args)
+            elif args.add_kind == "miniapp":
+                result = add_cmd.run_miniapp(args)
+            else:
+                result = packages_cmd.run_add_package(args)
+        elif args.command == "packages":
+            result = packages_cmd.run_packages(args)
         elif args.command == "skills":
             result = listcmd.run_skills(args)
         elif args.command == "miniapps":
@@ -200,6 +242,7 @@ def main(argv=None) -> int:
             parser.error(f"unknown command {args.command}")
             return 2
     except (init_cmd.InitError, upgrade_cmd.UpgradeError, add_cmd.AddError,
+            packages_cmd.PackageError,
             TemplateError, FileNotFoundError) as exc:
         if args.json:
             print(json.dumps({"ok": False, "error": str(exc)}))

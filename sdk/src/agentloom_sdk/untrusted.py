@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Fencing for external content before it reaches a model.
 
 Emails, web pages, documents, and anything else fetched from outside are

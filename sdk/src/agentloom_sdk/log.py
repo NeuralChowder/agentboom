@@ -1,4 +1,3 @@
-# agentloom:managed — upgraded by `agentloom upgrade`; local edits become drift.
 """Logging setup: one format, one level knob (LOG_LEVEL), stdout."""
 import logging
 import os

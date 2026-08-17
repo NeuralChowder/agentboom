@@ -23,7 +23,8 @@ class InitTests(AgentTestCase):
         self.assertIsNotNone(registry)
         self.assertEqual(registry["name"], self.name)
         self.assertEqual(registry["template"], "platform")
-        self.assertIn("platform/sdk/agent.py", registry["managed"])
+        self.assertIn("platform/api_gateway.py", registry["managed"])
+        self.assertIn("platform/requirements.txt", registry["managed"])
         self.assertIn(".qwen-docker/skills/web-search/SKILL.md", registry["managed"])
 
     def test_no_unrendered_placeholders(self):
@@ -64,39 +65,39 @@ class InitTests(AgentTestCase):
 
 class UpgradeTests(AgentTestCase):
     def test_locally_modified_is_reported_and_skipped(self):
-        llm = self.agent_dir / "platform/sdk/llm.py"
-        llm.write_text(llm.read_text() + "\n# local hack\n", encoding="utf-8")
+        gw = self.agent_dir / "platform/api_gateway.py"
+        gw.write_text(gw.read_text() + "\n# local hack\n", encoding="utf-8")
 
         check = upgrade_cmd.run(_upgrade_args(self.agent_dir))
-        self.assertIn("platform/sdk/llm.py", check["locally_modified"])
+        self.assertIn("platform/api_gateway.py", check["locally_modified"])
 
         apply_result = upgrade_cmd.run(_upgrade_args(self.agent_dir, apply=True))
-        self.assertIn("platform/sdk/llm.py", apply_result["locally_modified"])
-        self.assertIn("# local hack", llm.read_text(encoding="utf-8"))
+        self.assertIn("platform/api_gateway.py", apply_result["locally_modified"])
+        self.assertIn("# local hack", gw.read_text(encoding="utf-8"))
 
     def test_force_overwrites_local_modification(self):
-        llm = self.agent_dir / "platform/sdk/llm.py"
-        llm.write_text(llm.read_text() + "\n# local hack\n", encoding="utf-8")
+        gw = self.agent_dir / "platform/api_gateway.py"
+        gw.write_text(gw.read_text() + "\n# local hack\n", encoding="utf-8")
         upgrade_cmd.run(_upgrade_args(self.agent_dir, apply=True, force=True))
-        self.assertNotIn("# local hack", llm.read_text(encoding="utf-8"))
+        self.assertNotIn("# local hack", gw.read_text(encoding="utf-8"))
         registry = load_registry(self.agent_dir)
-        self.assertEqual(registry["managed"]["platform/sdk/llm.py"], sha256_file(llm))
+        self.assertEqual(registry["managed"]["platform/api_gateway.py"], sha256_file(gw))
 
     def test_deleted_managed_file_is_restored(self):
-        cron = self.agent_dir / "platform/sdk/cron.py"
-        cron.unlink()
+        run_py = self.agent_dir / "platform/migrations/run.py"
+        run_py.unlink()
         upgrade_cmd.run(_upgrade_args(self.agent_dir, apply=True))
-        self.assertTrue(cron.is_file())
+        self.assertTrue(run_py.is_file())
 
     def test_apply_updates_registry_hash(self):
         registry_before = load_registry(self.agent_dir)
-        cron = self.agent_dir / "platform/sdk/cron.py"
-        cron.unlink()
+        run_py = self.agent_dir / "platform/migrations/run.py"
+        run_py.unlink()
         upgrade_cmd.run(_upgrade_args(self.agent_dir, apply=True))
         registry_after = load_registry(self.agent_dir)
         self.assertEqual(
-            registry_after["managed"]["platform/sdk/cron.py"],
-            registry_before["managed"]["platform/sdk/cron.py"],
+            registry_after["managed"]["platform/migrations/run.py"],
+            registry_before["managed"]["platform/migrations/run.py"],
         )
 
 
@@ -117,8 +118,8 @@ class ValidateFailureTests(AgentTestCase):
         self.assertTrue(any(c["id"] == "structure.missing-file" for c in result["checks"]))
 
     def test_drift_reported_as_info(self):
-        llm = self.agent_dir / "platform/sdk/llm.py"
-        llm.write_text(llm.read_text() + "\n# drift\n", encoding="utf-8")
+        gw = self.agent_dir / "platform/api_gateway.py"
+        gw.write_text(gw.read_text() + "\n# drift\n", encoding="utf-8")
         result = validate_cmd.run(_validate_args(self.agent_dir))
         self.assertTrue(result["ok"])  # drift is informational
         self.assertTrue(any(c["id"] == "base.locally-modified" for c in result["checks"]))

@@ -1,9 +1,9 @@
 {
   "template": "platform",
-  "description": "Full agent stack: Qwen Code agent home (.qwen-docker/) + Python mini-app platform (gateway, SDK, scheduler) + Docker deployment.",
+  "description": "Full agent stack: Qwen Code agent home (qwen-home/) + Python mini-app platform (gateway consuming the agentloom-sdk package) + Docker deployment.",
   "managed": [
-    "platform/sdk/*",
-    "platform/services/scheduler.py",
+    "platform/api_gateway.py",
+    "platform/requirements.txt",
     "platform/migrations/run.py",
     "platform/scripts/*",
     "platform/README.md",
@@ -15,7 +15,7 @@
     "platform/scripts/prune_agent_transcripts.py"
   ],
   "notes": {
-    "managed": "Patterns are fnmatch-style against agent-relative paths ('*' also matches '/'). Base skills copied into .qwen-docker/skills/ are always managed regardless of these patterns.",
+    "managed": "Patterns are fnmatch-style against agent-relative paths ('*' also matches '/'). Base skills copied into .qwen-docker/skills/ are always managed regardless of these patterns. The runtime SDK is NOT copied anymore — it is installed as the agentloom-sdk package via platform/requirements.txt.",
     "user_owned": "Everything else (AGENTS.md, compose, Dockerfiles, miniapps, migrations 002_+) belongs to the agent from init onwards."
   }
 }
