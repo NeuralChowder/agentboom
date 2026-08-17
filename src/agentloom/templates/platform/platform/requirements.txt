@@ -1,5 +1,5 @@
 # Base runtime SDK — installed from agentloom GitHub release assets.
 # Bump this pin (and rebuild) to take base updates.
-agentloom_sdk @ https://github.com/ejbp/agentloom/releases/download/v0.4.0/agentloom_sdk-0.4.0-py3-none-any.whl
+agentloom_sdk @ https://github.com/ejbp/agentloom/releases/download/v0.4.1/agentloom_sdk-0.4.1-py3-none-any.whl
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0

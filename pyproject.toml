@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentloom"
-version = "0.4.0"
+version = "0.4.1"
 description = "Scaffold, maintain, and upgrade autonomous agent projects from a shared, upgradable base (Qwen Code agent home + Python mini-app platform + Docker deployment)."
 readme = "README.md"
 requires-python = ">=3.10"

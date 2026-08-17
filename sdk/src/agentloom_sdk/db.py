@@ -55,6 +55,11 @@ import re
 from pathlib import Path
 from typing import Any, AsyncIterator, List, Optional
 
+try:
+    import asyncpg  # present on PostgreSQL agents
+except ImportError:  # SQLite-only agents never need it
+    asyncpg = None  # type: ignore[assignment]
+
 log = logging.getLogger("agentloom_sdk.db")
 
 DATABASE_URI = os.environ.get("DATABASE_URI", "")
@@ -262,7 +267,10 @@ async def get_pool():
         raise RuntimeError(
             "DATABASE_URI is not set. Configure it in .env / docker-compose.yml."
         )
-    import asyncpg
+    if asyncpg is None:
+        raise RuntimeError(
+            "asyncpg is not installed — install agentloom-sdk[postgres]."
+        )
 
     global _pool, _pool_loop
     if _pool is not None and not getattr(_pool, "_closed", False):
