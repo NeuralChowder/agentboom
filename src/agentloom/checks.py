@@ -36,7 +36,7 @@ _CRON_FIELDS = [
     ("hour", 0, 23),
     ("day-of-month", 1, 31),
     ("month", 1, 12),
-    ("day-of-week", 0, 6),
+    ("day-of-week", 0, 7),  # 7 = Sunday (Unix cron accepts both)
 ]
 
 

@@ -27,14 +27,14 @@ class RenderTests(unittest.TestCase):
 
 class CronCheckTests(unittest.TestCase):
     def test_valid_expressions(self):
-        for expr in ("* * * * *", "*/5 * * * *", "0 9 * * 1-5",
+        for expr in ("* * * * *", "*/5 * * * *", "0 9 * * 1-5", "0 9 * * 7",
                      "1,15,30 2-4 1 1 0", "59 23 31 12 6"):
             ok, msg = validate_cron(expr)
             self.assertTrue(ok, f"{expr} should be valid: {msg}")
 
     def test_invalid_expressions(self):
         for expr in ("", "* * * *", "60 * * * *", "* 24 * * *",
-                     "* * 0 * *", "* * * 13 *", "* * * * 7",
+                     "* * 0 * *", "* * * 13 *", "* * * * 8",
                      "a * * * *", "5-1 * * * *", "*/0 * * * *"):
             ok, _ = validate_cron(expr)
             self.assertFalse(ok, f"{expr!r} should be invalid")

@@ -35,6 +35,8 @@ FAILURE_BACKOFF_CAP_SEC = 3600
 AGENT_JOB_TIMEOUT = float(os.environ.get("AGENT_JOB_TIMEOUT_SEC", "300"))
 HTTP_JOB_TIMEOUT = float(os.environ.get("HTTP_JOB_TIMEOUT_SEC", "300"))
 INTERNAL_URL = os.environ.get("PLATFORM_INTERNAL_URL", "http://127.0.0.1:8000")
+# Cron matching happens in this timezone (DST-aware); stored times are UTC.
+SCHEDULER_TZ = os.environ.get("SCHEDULER_TZ", "UTC")
 
 _TS = "%Y-%m-%d %H:%M:%S"  # matches SQLite CURRENT_TIMESTAMP (UTC)
 
@@ -265,7 +267,7 @@ class Scheduler:
 
 def _first_next_run(cron_expr, interval_min, now: datetime) -> Optional[datetime]:
     if cron_expr:
-        return cron.next_cron_time(cron_expr, after=now)
+        return cron.next_cron_time(cron_expr, after=now, tz_name=SCHEDULER_TZ)
     if interval_min:
         return now + timedelta(minutes=interval_min)
     return None  # manual-only job
@@ -280,7 +282,7 @@ def _next_run_after(job: dict, after: datetime, *, failed: bool,
         )
         return after + timedelta(seconds=delay)
     if job.get("cron_expr"):
-        return cron.next_cron_time(job["cron_expr"], after=after)
+        return cron.next_cron_time(job["cron_expr"], after=after, tz_name=SCHEDULER_TZ)
     if job.get("interval_min"):
         return after + timedelta(minutes=job["interval_min"])
     return None
