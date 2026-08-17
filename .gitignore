@@ -1,0 +1,11 @@
+# agentloom is a pure-Python, stdlib-only project — keep it that way.
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+*.log

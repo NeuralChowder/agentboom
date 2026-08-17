@@ -1,0 +1,24 @@
+{
+  "name": "hello",
+  "description": "Working example mini-app: endpoints, a scheduled job, and event subscription. Replace or delete it.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {
+      "name": "heartbeat",
+      "type": "http",
+      "target": "heartbeat/run",
+      "interval_min": 60,
+      "enabled": false
+    },
+    {
+      "name": "daily-agent-check",
+      "type": "agent",
+      "prompt": "Check the platform's /admin/status for load errors and report anything unusual.",
+      "cron": "0 9 * * *",
+      "enabled": false
+    }
+  ],
+  "subscribes": ["hello.beat"],
+  "ui": null
+}

@@ -1,0 +1,64 @@
+# {{AGENT_TITLE}} — deployment stack.
+#
+#   qwen-agent          Qwen Code daemon (`qwen serve`) — the brain
+#   endpoint-platform   FastAPI gateway + mini-apps + scheduler — the body
+#
+# Ports are published on 127.0.0.1 by default: the platform has no
+# end-user auth story of its own. Expose externally via a reverse proxy
+# with an allowlist, not by widening these bindings.
+name: {{AGENT_NAME}}
+
+services:
+  qwen-agent:
+    build:
+      context: .
+      args:
+        QWEN_VERSION: ${QWEN_VERSION:-latest}
+        QWEN_REBUILD: ${QWEN_REBUILD:-0}
+        USER_ID: ${USER_ID:-1000}
+        USER_NAME: ${USER_NAME:-user}
+        EXTRA_APT_PACKAGES: ${EXTRA_APT_PACKAGES:-}
+    init: true                    # qwen serve does not reap zombie MCP children
+    restart: unless-stopped
+    environment:
+      - QWEN_SERVER_TOKEN=${QWEN_SERVER_TOKEN}
+      - PLATFORM_API=http://endpoint-platform:8000
+      - QWEN_SERVE_ARGS=${QWEN_SERVE_ARGS:-}
+    ports:
+      - "127.0.0.1:${PORT_AGENT:-4170}:4170"
+    volumes:
+      # Container's ~/.qwen lives in the repo (code and config are committed;
+      # runtime state inside it is gitignored).
+      - ./.qwen-docker:/home/${USER_NAME:-user}/.qwen
+      # Platform code is mounted so skills/scripts can use the SDK.
+      - ./platform:/home/${USER_NAME:-user}/platform
+      # SQLite needs real POSIX locking — a host bind mount causes repeated
+      # WAL corruption. Named volume only.
+      - agent-data:/home/${USER_NAME:-user}/data
+    depends_on:
+      - endpoint-platform
+
+  endpoint-platform:
+    build: ./platform
+    init: true
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+      - PLATFORM_ADMIN_PASSWORD=${PLATFORM_ADMIN_PASSWORD}
+      - QWEN_AGENT_URL=http://qwen-agent:4170
+      - QWEN_SERVER_TOKEN=${QWEN_SERVER_TOKEN}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - SCHEDULER_TICK_SEC=${SCHEDULER_TICK_SEC:-10}
+      - AGENT_MAX_CONCURRENT=${AGENT_MAX_CONCURRENT:-1}
+    ports:
+      - "127.0.0.1:${PORT_PLATFORM:-8000}:8000"
+    volumes:
+      # Bind-mounted for hot growth: drop a mini-app folder, it is served
+      # within ~2s without rebuild or restart.
+      - ./platform:/app
+      - agent-data:/data
+
+volumes:
+  agent-data:

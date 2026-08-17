@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentloom"
+version = "0.1.0"
+description = "Scaffold, maintain, and upgrade autonomous agent projects from a shared, upgradable base (Qwen Code agent home + Python mini-app platform + Docker deployment)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Eduardo Pinheiro" }]
+keywords = ["agents", "scaffold", "template", "cli", "qwen-code", "miniapps"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Code Generators",
+]
+
+[project.scripts]
+agentloom = "agentloom.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ejbp/agentloom"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agentloom = ["templates/**/*", "templates/**/.*"]

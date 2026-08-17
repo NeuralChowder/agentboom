@@ -1,0 +1,36 @@
+# ── Secrets — never commit ──────────────────────────────────────────────
+.env
+.qwen-docker/settings.json
+
+# ── Runtime state — regenerable working state of the agent ─────────────
+.qwen-docker/sessions/
+.qwen-docker/projects/
+.qwen-docker/debug/
+.qwen-docker/tmp/
+.qwen-docker/todos/
+.qwen-docker/usage/
+.qwen-docker/usage_record.jsonl
+.qwen-docker/installation_id
+.qwen-docker/extensions/
+.qwen-docker/extension-store/
+.qwen-docker/channels/
+.qwen-docker/file-history/
+.qwen-docker/artifacts/
+
+# ── Personal data — if your agent stores data about people, keep it out
+# of git (adjust the paths to where your agent keeps such data) ──────────
+.qwen-docker/memories/user/
+data/
+
+# ── Build artifacts ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+node_modules/
+.next/
+dist/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.log
+.DS_Store

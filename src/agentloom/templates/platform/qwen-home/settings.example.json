@@ -1,0 +1,38 @@
+{
+  "$comment": "Copy to settings.json and edit. settings.json is gitignored — it carries secrets. See docs/qwen-settings.md for every block.",
+  "env": {
+    "EXAMPLE_LLM_API_KEY": "replace-with-real-key"
+  },
+  "tools": {
+    "approvalMode": "yolo"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "generic",
+        "name": "generic",
+        "baseUrl": "http://your-llm-gateway:4000/v1",
+        "envKey": "EXAMPLE_LLM_API_KEY",
+        "generationConfig": {
+          "contextWindowSize": 128000
+        }
+      }
+    ]
+  },
+  "model": {
+    "name": "generic"
+  },
+  "permissions": {
+    "allow": ["*"]
+  },
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "type": "stdio",
+      "env": {
+        "PUPPETEER_LAUNCH_OPTIONS": "{ \"headless\": true, \"args\": [\"--no-sandbox\", \"--disable-setuid-sandbox\"] }"
+      }
+    }
+  }
+}
