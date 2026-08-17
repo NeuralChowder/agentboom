@@ -4,6 +4,12 @@ Where agentloom goes next, roughly in priority order.
 
 ## Near term
 
+- **agentloom-sdk: Postgres backend** — `agentloom_sdk.db` speaks SQLite
+  today; the personal-assistant agent (mycelium) runs PostgreSQL/asyncpg.
+  A second backend unlocks its full adoption (db, then idle).
+- **Upstream mycelium's evolved modules** — `agent.py` v2 session
+  lifecycle (named sessions, caps, idle reaping) and `untrusted` injection
+  scoring are production-proven superset versions waiting to come home.
 - **`agentloom adopt <dir>`** — bring an existing hand-built agent under
   base management: create `.agentloom.json`, map its files onto managed
   files, report the diff.
@@ -13,9 +19,10 @@ Where agentloom goes next, roughly in priority order.
   `browser-scraper` (HTML-first, screenshot-matrix fallback for canvas),
   `transcribe-audio`, `email-manager` + `email-account-setup` (build on
   the `vault` package), `integration-coordinator`, `calendar-manager`.
-- **SDK: Postgres backend** — `agentloom_sdk.db` speaks SQLite today; the
-  personal-assistant agent runs PostgreSQL/asyncpg. A second backend makes
-  that agent fully consumable by the package.
+- **Note for devops-monitor (infra-watch):** it is pinned to
+  agentloom-sdk v0.2.1. v0.3.0's cron defaults its matching timezone to
+  Europe/Lisbon — audit scheduler call sites (or set an explicit tz)
+  before bumping the pin.
 
 ## Medium term
 
@@ -38,6 +45,14 @@ Where agentloom goes next, roughly in priority order.
 
 ## Shipped
 
+- v0.3.0 — upstreamed mycelium's tz-aware cron (dow 7 = Sunday) and the
+  `accepted` envelope into the SDK; base scheduler passes SCHEDULER_TZ
+  explicitly. Mycelium (edu-bot) adoption started on branch
+  `agentloom-sdk` (re-export shims + wheel pin, behaviour-verified in the
+  live container; deploy pending review).
+- v0.2.1 — migrations-dir resolution fix for pip-installed SDK.
+  devops-monitor (infra-watch) fully migrated: vendored sdk removed,
+  19/19 e2e cases green, deployed healthy on owl.
 - v0.2.0 — `agentloom-sdk` as an installable package (update the base in
   one place, agents take it via a pin bump); optional packages mechanism
   with `telegram`, `rich-link`, `vault`; GitHub release pipeline
