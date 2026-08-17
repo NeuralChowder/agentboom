@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
 
   publish:
     needs: build
-    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:

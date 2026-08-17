@@ -1,7 +1,8 @@
 name: CI
 
-# Always on the repo's self-hosted runner on owl (repo-scoped, labels
-# self-hosted-linux + owl-deploy). GitHub-hosted runners are never used.
+# Public repo = build/CI only, on GitHub-hosted runners. Deploys live in
+# the PRIVATE ejbp/agentboom-deploy repo, which owns the self-hosted
+# runner and the kubeconfig (xema-deploy pattern).
 
 on:
   push:
@@ -10,7 +11,7 @@ on:
 
 jobs:
   test:
-    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
