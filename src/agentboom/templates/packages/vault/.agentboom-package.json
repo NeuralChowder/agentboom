@@ -1,6 +1,8 @@
 {
   "name": "vault",
   "description": "Encrypted credential store (AES-256-GCM in SQLite) with audit logging — secrets out of code and env files.",
+  "kind": "addon",
+  "icon": "🔐",
   "requirements": [
     "cryptography>=44.0.0"
   ],

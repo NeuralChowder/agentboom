@@ -1,6 +1,8 @@
 {
   "name": "telegram",
   "description": "Interactive Telegram channel: talk to the agent from your phone via qwen serve channels.",
+  "kind": "addon",
+  "icon": "💬",
   "requirements": [],
   "env_example": [
     "",

@@ -1,6 +1,8 @@
 {
   "name": "rich-link",
   "description": "Long answers as mobile-friendly HTML pages: shortlinks mini-app + rich-link skill.",
+  "kind": "addon",
+  "icon": "🔗",
   "requirements": [],
   "env_example": [
     "",
