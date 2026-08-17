@@ -1,6 +1,10 @@
-# agentboom
+<p align="center">
+  <img src="assets/logo.png" alt="agentboom logo" width="180">
+</p>
 
-[agentboom.dev](https://agentboom.dev) · 
+<h1 align="center">agentboom</h1>
+
+<p align="center"><a href="https://agentboom.dev">agentboom.dev</a> ·
 **Scaffold, maintain, and upgrade autonomous agent projects from a shared,
 evolving base.**
 
