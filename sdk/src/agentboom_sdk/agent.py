@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from agentboom_sdk.task_queue import TaskPriority, queue as task_queue
+from agentboom_sdk.task_queue import QueueFullError, TaskPriority, queue as task_queue
 
 log = logging.getLogger("agentboom_sdk.agent")
 
@@ -107,7 +107,7 @@ async def ask(
         return await task_queue.run_with_queue(
             _do_ask(), task_id, priority=prio, timeout=timeout + 10
         )
-    except RuntimeError as e:
+    except QueueFullError as e:
         # Queue full — still attempt directly as fallback rather than dropping.
         log.warning("Queue rejected '%s', attempting direct: %s", task_id, e)
         return await _do_ask()
@@ -206,21 +206,37 @@ async def close_all() -> None:
         await _close_session(entry["session_id"])
 
 
+# One lock per conversation name: creates for the SAME conversation are
+# serialized (no duplicates), while different conversations no longer
+# queue behind each other's network I/O. Dict access needs no await, so
+# the map itself stays consistent without holding a lock across HTTP.
+_name_locks: Dict[str, asyncio.Lock] = {}
+
+
+def _name_lock(name: str) -> asyncio.Lock:
+    lock = _name_locks.get(name)
+    if lock is None:
+        lock = _name_locks[name] = asyncio.Lock()
+    return lock
+
+
 async def _get_session(name: str) -> Optional[str]:
-    # Hold the lock across the entire get-or-create to prevent duplicates.
-    async with _conversation_lock:
+    async with _name_lock(name):
         entry = _conversations.get(name)
         if entry:
             entry["last_used"] = time.time()
             return entry["session_id"]
 
-        session_id = await _create_session()
+        session_id = await _create_session()  # network — outside any lock
         if session_id:
+            evict_id: Optional[str] = None
             if len(_conversations) >= MAX_OPEN_SESSIONS:
                 oldest = min(_conversations.items(), key=lambda e: e[1]["last_used"])
-                await _close_session(oldest[1]["session_id"])
+                evict_id = oldest[1]["session_id"]
                 _conversations.pop(oldest[0])
             _conversations[name] = {"session_id": session_id, "last_used": time.time()}
+            if evict_id:
+                await _close_session(evict_id)  # network — outside any lock
     return session_id
 
 

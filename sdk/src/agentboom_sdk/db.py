@@ -406,7 +406,24 @@ def _close_pool_on_exit() -> None:
         pass  # shutting down; nothing useful to do here
 
 
-atexit.register(_close_pool_on_exit)
+def _close_sqlite_on_exit() -> None:
+    # The aiosqlite worker thread is non-daemon: a connection left open at
+    # interpreter shutdown hangs process exit. Agents that forget close()
+    # must still terminate cleanly.
+    if _db is None or not _db_open:
+        return
+    try:
+        asyncio.run(_sqlite_close())
+    except Exception:
+        pass  # shutting down; nothing useful to do here
+
+
+def _cleanup_on_exit() -> None:
+    _close_pool_on_exit()
+    _close_sqlite_on_exit()
+
+
+atexit.register(_cleanup_on_exit)
 
 
 # ── unified API ───────────────────────────────────────────────────

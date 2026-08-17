@@ -33,6 +33,8 @@ def unsubscribe(event_type: str, key: str) -> int:
     handlers = _subscribers.get(event_type, [])
     before = len(handlers)
     handlers[:] = [(k, h) for k, h in handlers if k != key]
+    if not handlers:
+        _subscribers.pop(event_type, None)
     return before - len(handlers)
 
 

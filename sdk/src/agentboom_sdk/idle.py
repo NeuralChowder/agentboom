@@ -101,14 +101,15 @@ async def unchanged_since(job_key: str, fingerprint: str) -> bool:
     if fingerprint in ("unknown", ""):
         return False
 
+    await _ensure_table()
     row = await fetchrow(
-        "SELECT fingerprint FROM scheduler.job_input_state WHERE job_key = $1",
+        f"SELECT fingerprint FROM {_TABLE} WHERE job_key = $1",
         job_key)
     if not row or row["fingerprint"] != fingerprint:
         return False
 
     await execute(
-        """UPDATE scheduler.job_input_state
+        f"""UPDATE {_TABLE}
               SET skips = skips + 1, last_skipped_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
             WHERE job_key = $1""", job_key)
     return True
@@ -122,11 +123,14 @@ async def mark_done(job_key: str, fingerprint: str) -> None:
     """
     if fingerprint in ("unknown", ""):
         return
+    await _ensure_table()
+    # skips resets here: it counts skips since the last real run.
     await execute(
-        """INSERT INTO scheduler.job_input_state (job_key, fingerprint, last_ran_at, updated_at)
+        f"""INSERT INTO {_TABLE} (job_key, fingerprint, last_ran_at, updated_at)
            VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
            ON CONFLICT (job_key) DO UPDATE
               SET fingerprint = EXCLUDED.fingerprint,
+                  skips = 0,
                   last_ran_at = CURRENT_TIMESTAMP,
                   updated_at = CURRENT_TIMESTAMP""",
         job_key, fingerprint)
@@ -134,6 +138,7 @@ async def mark_done(job_key: str, fingerprint: str) -> None:
 
 async def state(job_key: str) -> Optional[dict]:
     """What this job last saw — for a status screen or a puzzled human."""
+    await _ensure_table()
     row = await fetchrow(
-        "SELECT * FROM scheduler.job_input_state WHERE job_key = $1", job_key)
+        f"SELECT * FROM {_TABLE} WHERE job_key = $1", job_key)
     return dict(row) if row else None

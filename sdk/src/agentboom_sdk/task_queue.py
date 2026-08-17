@@ -39,6 +39,17 @@ class QueuedTask:
 
 _MAX_CONCURRENT = int(os.environ.get("AGENT_MAX_CONCURRENT", "1"))
 _QUEUE_DEPTH = int(os.environ.get("AGENT_MAX_QUEUE", "20"))
+_DRAIN_TASK_TIMEOUT_SEC = float(os.environ.get("AGENT_DRAIN_TIMEOUT_SEC", "30"))
+
+
+class QueueFullError(RuntimeError):
+    """Raised when a task cannot be queued because the queue is at depth.
+
+    Distinct from task failures on purpose: callers that want to
+    fall back to running direct must catch THIS, not RuntimeError —
+    catching RuntimeError also swallows genuine task errors and
+    re-executes them (double requests, double cost).
+    """
 
 
 class AgentTaskQueue:
@@ -48,7 +59,9 @@ class AgentTaskQueue:
         self.max_concurrent = max_concurrent
         self.max_queue = max_queue
         self.semaphore = asyncio.Semaphore(max_concurrent)
-        self.queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
+        # maxsize makes the bound atomic — a qsize() check followed by
+        # put() let concurrent producers overshoot max_queue.
+        self.queue: asyncio.PriorityQueue = asyncio.PriorityQueue(maxsize=max_queue)
         self._running = 0
         self._worker_task: Optional[asyncio.Task] = None
         self._counter = 0
@@ -76,9 +89,17 @@ class AgentTaskQueue:
                 while not self.queue.empty():
                     try:
                         qt = self.queue.get_nowait()
-                        await qt.coroutine
+                        # Per-task bound: one wedged coroutine must not be
+                        # able to hang shutdown forever.
+                        await asyncio.wait_for(
+                            asyncio.ensure_future(qt.coroutine),
+                            timeout=_DRAIN_TASK_TIMEOUT_SEC,
+                        )
                     except asyncio.CancelledError:
                         break
+                    except asyncio.TimeoutError:
+                        log.error("Drain timeout for queued task '%s' — cancelled",
+                                  qt.task_id)
                     except Exception:
                         log.exception("Error draining queued task '%s'", qt.task_id)
             self._worker_task.cancel()
@@ -92,14 +113,16 @@ class AgentTaskQueue:
 
     async def enqueue(self, coro: Coroutine, task_id: str,
                       priority: TaskPriority = TaskPriority.NORMAL) -> bool:
-        if self.queue.qsize() >= self.max_queue:
+        self._counter += 1
+        qt = QueuedTask(task_id=task_id, priority=priority, coroutine=coro, _order=self._counter)
+        try:
+            self.queue.put_nowait(qt)
+        except asyncio.QueueFull:
             self._stats["rejected"] += 1
             log.warning("Task '%s' rejected — queue full (%d/%d)",
                         task_id, self.queue.qsize(), self.max_queue)
+            qt.coroutine.close()  # never awaited — avoid "never retrieved" warnings
             return False
-        self._counter += 1
-        qt = QueuedTask(task_id=task_id, priority=priority, coroutine=coro, _order=self._counter)
-        await self.queue.put(qt)
         self._stats["enqueued"] += 1
         return True
 
@@ -123,9 +146,21 @@ class AgentTaskQueue:
 
         ok = await self.enqueue(wrapped(), task_id, priority)
         if not ok:
-            raise RuntimeError(f"Task '{task_id}' rejected — queue full")
+            raise QueueFullError(f"Task '{task_id}' rejected — queue full")
 
-        await done.wait()
+        # Bound the wait: with `timeout`, every queued task ahead consumes
+        # at most `timeout`, so this is a true upper bound. Without it the
+        # caller asked for unbounded — but a dead worker must still not be
+        # able to hang a bounded caller forever.
+        try:
+            if timeout:
+                await asyncio.wait_for(done.wait(), timeout=timeout * (self.max_queue + 1))
+            else:
+                await done.wait()
+        except asyncio.TimeoutError:
+            raise TimeoutError(
+                f"Task '{task_id}' never completed within the queue wait bound"
+            )
         if result_holder["error"]:
             raise result_holder["error"]
         return result_holder["result"]

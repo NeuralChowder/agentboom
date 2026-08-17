@@ -30,7 +30,7 @@ from typing import Dict, List, Optional
 
 import httpx
 
-from agentboom_sdk.task_queue import TaskPriority, queue as _task_queue
+from agentboom_sdk.task_queue import QueueFullError, TaskPriority, queue as _task_queue
 
 log = logging.getLogger("agentboom_sdk.llm")
 
@@ -130,8 +130,11 @@ async def complete(
                 priority=TaskPriority.NORMAL,
                 timeout=budget + 10,
             )
-        except RuntimeError as exc:
+        except QueueFullError as exc:
             # Queue full — run directly rather than dropping the work.
+            # Catch ONLY the rejection: catching RuntimeError here also
+            # swallowed LLMError from failed completions and re-ran them,
+            # doubling every gateway 429/500/timeout.
             log.warning("LLM queue rejected (%s), running direct", exc)
     return await _complete_once(
         prompt, system=system, model=model,
@@ -191,11 +194,24 @@ def extract_json(text: str) -> Optional[dict]:
         candidates.append(fenced.group(1))
 
     # Every balanced top-level {...} span, longest first — the outermost
-    # object is almost always the intended payload.
+    # object is almost always the intended payload. The scan is string-
+    # and escape-aware: braces inside JSON string values (common in model
+    # answers) must not close the span early.
     depth, start = 0, None
+    in_str, escape = False, False
     spans: List[str] = []
     for index, char in enumerate(text):
-        if char == "{":
+        if in_str:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_str = False
+            continue
+        if char == '"':
+            in_str = True
+        elif char == "{":
             if depth == 0:
                 start = index
             depth += 1
