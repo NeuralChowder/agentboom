@@ -11,7 +11,11 @@ import json
 import sys
 
 from agentloom import __version__
+from agentloom import fleet as fleet_reg
 from agentloom.commands import add as add_cmd
+from agentloom.commands import adopt as adopt_cmd
+from agentloom.commands import console as console_cmd
+from agentloom.commands import fleetcmd
 from agentloom.commands import doctor as doctor_cmd
 from agentloom.commands import init as init_cmd
 from agentloom.commands import listcmd
@@ -74,6 +78,26 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("packages", parents=[common],
                        help="list available packages and those installed in an agent")
     p.add_argument("dir", nargs="?", default=None, help="agent directory (optional)")
+
+    p = sub.add_parser("adopt", parents=[common],
+                       help="bring an existing agent under base management")
+    adopt_cmd.add_arguments(p)
+
+    p = sub.add_parser("fleet", parents=[common],
+                       help="the operator view: status/add/remove registered agents")
+    fleet_sub = p.add_subparsers(dest="fleet_action")
+    fleet_sub.add_parser("status", help="health + drift of every registered agent")
+    sp = fleet_sub.add_parser("add", help="register an agent in the fleet")
+    sp.add_argument("dir", help="agent directory (must have .agentloom.json)")
+    sp = fleet_sub.add_parser("remove", help="unregister an agent")
+    sp.add_argument("name", help="agent name or path")
+
+    p = sub.add_parser("console", parents=[common],
+                       help="open the loomkeeper operator session (qwen)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="refresh the workspace but do not launch qwen")
+    p.add_argument("qwen_args", nargs=argparse.REMAINDER,
+                   help="extra arguments passed through to qwen")
 
     p = sub.add_parser("skills", parents=[common], help="list skills in an agent")
     p.add_argument("dir", nargs="?", default=".", help="agent directory (default: cwd)")
@@ -193,6 +217,34 @@ def _print_human(command: str, result: dict) -> None:
                     print(f"  {name} (since {installed[name]['installed_at']})")
             else:
                 print(f"None installed in {result['agent_dir']}")
+    elif command == "adopt":
+        print(f"Adopted '{result['name']}' at {result['agent_dir']}")
+        print(f"  managed (byte-identical to base): {len(result['managed_matched'])}")
+        print(f"  agent-owned/diverged: {len(result['owned_or_diverged'])}")
+        for line in result["next"]:
+            print(f"  next: {line}")
+    elif command == "fleet":
+        if "registered" in result:
+            print(f"Registered {result['registered']['name']} ({result['registered']['path']})")
+        elif "removed" in result:
+            print(f"Removed {result['removed']} from the fleet")
+        else:
+            if not result["agents"]:
+                print("Fleet is empty — `agentloom init <dir>` registers automatically.")
+            for row in result["agents"]:
+                if not row.get("ok"):
+                    print(f"[----] {row['name']}: {row.get('error')}")
+                    continue
+                drift = len(row["drift_modified"]) + len(row["drift_missing"])
+                flag = "ok  " if row["validate_errors"] == 0 else "FAIL"
+                pkgs = f" pkgs={','.join(row['packages'])}" if row["packages"] else ""
+                print(f"[{flag}] {row['name']}  base={row['base_version']}"
+                      f"  drift={drift}  errors={row['validate_errors']}{pkgs}")
+                print(f"       {row['path']}")
+    elif command == "console":
+        print(f"Loomkeeper workspace refreshed at {result['workspace']}")
+        if not result.get("launched"):
+            print(result.get("note", ""))
     elif command == "selfcheck":
         for step in result["steps"]:
             flag = "ok  " if step["ok"] else "FAIL"
@@ -225,6 +277,18 @@ def main(argv=None) -> int:
                 result = packages_cmd.run_add_package(args)
         elif args.command == "packages":
             result = packages_cmd.run_packages(args)
+        elif args.command == "adopt":
+            result = adopt_cmd.run(args)
+        elif args.command == "fleet":
+            action = getattr(args, "fleet_action", None)
+            if action == "add":
+                result = fleetcmd.run_add(args)
+            elif action == "remove":
+                result = fleetcmd.run_remove(args)
+            else:
+                result = fleetcmd.run_status(args)
+        elif args.command == "console":
+            result = console_cmd.run(args)
         elif args.command == "skills":
             result = listcmd.run_skills(args)
         elif args.command == "miniapps":
@@ -242,7 +306,8 @@ def main(argv=None) -> int:
             parser.error(f"unknown command {args.command}")
             return 2
     except (init_cmd.InitError, upgrade_cmd.UpgradeError, add_cmd.AddError,
-            packages_cmd.PackageError,
+            packages_cmd.PackageError, adopt_cmd.AdoptError,
+            fleetcmd.FleetError, console_cmd.ConsoleError,
             TemplateError, FileNotFoundError) as exc:
         if args.json:
             print(json.dumps({"ok": False, "error": str(exc)}))

@@ -10,9 +10,6 @@ Where agentloom goes next, roughly in priority order.
 - **Upstream mycelium's evolved modules** — `agent.py` v2 session
   lifecycle (named sessions, caps, idle reaping) and `untrusted` injection
   scoring are production-proven superset versions waiting to come home.
-- **`agentloom adopt <dir>`** — bring an existing hand-built agent under
-  base management: create `.agentloom.json`, map its files onto managed
-  files, report the diff.
 - **Platform MCP server template** — expose the gateway to external agents
   over MCP (catalog, job triggering, run queries).
 - **More packages** — candidates extracted and proven in production:
@@ -44,6 +41,10 @@ Where agentloom goes next, roughly in priority order.
   every PR to an agent repo.
 
 ## Shipped
+
+- v0.5.0 — fleet management: `adopt`, fleet registry + `agentloom fleet`,
+  and `agentloom console` (the loomkeeper operator session). Wefts are
+  indexed in `~/.agentloom/fleet.json` — an index, never a dependency.
 
 - v0.3.0 — upstreamed mycelium's tz-aware cron (dow 7 = Sunday) and the
   `accepted` envelope into the SDK; base scheduler passes SCHEDULER_TZ

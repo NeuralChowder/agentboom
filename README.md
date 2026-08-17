@@ -55,6 +55,9 @@ docker compose logs -f qwen-agent
 | `agentloom packages [dir]` | list available/installed packages |
 | `agentloom skills [dir]` / `miniapps [dir]` | list an agent's capabilities |
 | `agentloom list [parent]` | discover agentloom agents under a directory |
+| `agentloom adopt [dir]` | bring an existing agent under base management (byte-match, non-destructive) |
+| `agentloom fleet [status\|add\|remove]` | operator view: health + drift of every registered agent |
+| `agentloom console` | open the loomkeeper operator session (pre-configured `qwen`) |
 | `agentloom doctor` | environment checks (python, docker, compose, node) |
 | `agentloom selfcheck` | end-to-end QA of the templates in a temp dir |
 
@@ -73,6 +76,22 @@ into any agent with `agentloom add package <name>`:
 | `vault` | AES-256-GCM credential store mini-app + migration + manager skill |
 
 Scheduling/routines are already in the base (manifest jobs + scheduler).
+
+## Managing the fleet
+
+Agents built from agentloom are called **wefts** (the base is the loom's
+*warp*; each agent is its own weft thread — the pattern it weaves is the
+agent). `agentloom init` registers a weft automatically; existing agents
+join with `agentloom adopt`. The registry (`~/.agentloom/fleet.json`) is
+an index, never a dependency — every weft runs standalone even if
+agentloom disappears.
+
+- `agentloom fleet` — per-agent health: base version, drift, validate
+  errors, installed packages.
+- `agentloom console` — materializes the **loomkeeper** operator
+  workspace (operator manual, `fleet-ops` skill, live fleet snapshot) and
+  launches `qwen` inside it: a session pre-configured to create, update,
+  and manage wefts with the full agentloom playbook.
 
 ## What's in the base
 

@@ -108,6 +108,40 @@ List available packages, and (with an agent dir) installed ones.
  "agent_dir": "..."}
 ```
 
+## `agentloom adopt [dir]`
+
+Bring an existing agent under base management. A file is marked managed
+ONLY when it is byte-identical to the template rendering with the stored
+variables; everything else stays agent-owned. Non-destructive by
+construction. Refuses if `.agentloom.json` already exists.
+
+```json
+{"ok": true, "name": "...", "template": "platform",
+ "managed_matched": ["..."], "owned_or_diverged": ["..."]}
+```
+
+## `agentloom fleet`
+
+Operator view over the fleet registry (`~/.agentloom/fleet.json`).
+`fleet add <dir>` registers an agent (requires `.agentloom.json` —
+`adopt` first); `fleet remove <name>` unregisters; bare `fleet` (or
+`fleet status`) reports every agent: base version, template, packages,
+managed-file drift, validate errors.
+
+```json
+{"ok": true, "agents": [{"name": "...", "path": "...", "ok": true,
+  "base_version": "0.5.0", "template": "platform", "packages": [],
+  "drift_modified": [], "drift_missing": [],
+  "validate_errors": 0, "validate_warnings": 0}]}
+```
+
+## `agentloom console`
+
+Materialize the loomkeeper operator workspace under
+`~/.agentloom/console/` (operator AGENTS.md, `fleet-ops` skill, live
+`fleet-snapshot.md`) and exec `qwen` in it. `--dry-run` refreshes the
+workspace without launching. Extra arguments pass through to `qwen`.
+
 ## `agentloom skills [dir]` / `agentloom miniapps [dir]`
 
 List an agent's capabilities.

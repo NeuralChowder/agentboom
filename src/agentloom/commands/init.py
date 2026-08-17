@@ -12,6 +12,7 @@ from agentloom.registry import (
     sha256_file,
 )
 from agentloom.render import render_file
+from agentloom import fleet as fleet_reg
 
 from . import DEFAULT_TEMPLATE, skills_base_root, template_dir
 
@@ -131,6 +132,7 @@ def run(args) -> dict:
         "managed": managed,
     }
     save_registry(target, registry)
+    fleet_reg.register_best_effort(target)
 
     return {
         "ok": True,
