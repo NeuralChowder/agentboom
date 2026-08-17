@@ -40,7 +40,7 @@ Every command accepts `--json` (stable payloads; exit 0 ok, 1 failed,
 
 - **Base runtime** = the `agentboom-sdk` wheel, pinned in each agent's
   `platform/requirements.txt` (or Dockerfile) to a GitHub release asset of
-  ejbp/agentboom. Updating the base = bump the pin + rebuild.
+  NeuralChowder/agentboom. Updating the base = bump the pin + rebuild.
 - **Template glue** (gateway, entrypoint scripts, base skills, subagent
   definitions) = managed files recorded in each agent's `.agentboom.json`;
   synced with `agentboom upgrade` — clean files update, locally modified
