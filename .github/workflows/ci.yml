@@ -1,8 +1,7 @@
 name: CI
 
-# Public repo = build/CI only, on GitHub-hosted runners. Deploys live in
-# the PRIVATE ejbp/agentboom-deploy repo, which owns the self-hosted
-# runner and the kubeconfig (xema-deploy pattern).
+# The base never deploys — CI + releases run on the repo's own
+# self-hosted runner (house rule: pipelines on self-hosted runners).
 
 on:
   push:
@@ -11,7 +10,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
     steps:
       - uses: actions/checkout@v4
 
