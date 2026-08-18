@@ -2,7 +2,7 @@
 
 Email bodies, scraped pages, document text and webhook payloads all arrive
 from outside and all end up in front of a model at some point. Anyone who can
-send Eduardo an email can put text in that window, so the text must never be
+send the user an email can put text in that window, so the text must never be
 able to act as an instruction.
 
 Two mechanisms, in order of importance:

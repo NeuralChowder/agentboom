@@ -220,22 +220,22 @@ class VoiceTests(unittest.TestCase):
     def test_sign_closes_as_assistant_not_principal(self):
         from agentboom_sdk import voice
         signed = voice.sign("Here is the report.", language="en",
-                            principal="Eduardo Pinheiro")
-        self.assertIn("Assistant to Eduardo Pinheiro", signed)
-        self.assertFalse(voice.signs_as_principal(signed, "Eduardo Pinheiro"))
+                            principal="Alex Doe")
+        self.assertIn("Assistant to Alex Doe", signed)
+        self.assertFalse(voice.signs_as_principal(signed, "Alex Doe"))
 
     def test_signs_as_principal_detects_bare_name(self):
         from agentboom_sdk import voice
-        text = "Thanks!\n\nEduardo Pinheiro"
-        self.assertTrue(voice.signs_as_principal(text, "Eduardo Pinheiro"))
-        prose = "As Eduardo Pinheiro mentioned earlier, we agree."
-        self.assertFalse(voice.signs_as_principal(prose, "Eduardo Pinheiro"))
+        text = "Thanks!\n\nAlex Doe"
+        self.assertTrue(voice.signs_as_principal(text, "Alex Doe"))
+        prose = "As Alex Doe mentioned earlier, we agree."
+        self.assertFalse(voice.signs_as_principal(prose, "Alex Doe"))
 
     def test_sign_is_idempotent(self):
         from agentboom_sdk import voice
-        once = voice.sign("Body.", language="en", principal="Eduardo Pinheiro")
-        twice = voice.sign(once, language="en", principal="Eduardo Pinheiro")
-        self.assertEqual(twice.count("Assistant to Eduardo Pinheiro"), 1)
+        once = voice.sign("Body.", language="en", principal="Alex Doe")
+        twice = voice.sign(once, language="en", principal="Alex Doe")
+        self.assertEqual(twice.count("Assistant to Alex Doe"), 1)
 
     def test_greeting_returns_known_words(self):
         from agentboom_sdk import voice
@@ -295,7 +295,7 @@ class ProfileReaderTests(unittest.TestCase):
         from agentboom_sdk import profile
         path = pathlib.Path(_TMP) / "profile.json"
         path.write_text(json.dumps({
-            "user": {"name": "Eduardo"},
+            "user": {"name": "Alex"},
             "language": "auto",
             "timezone": "Europe/Lisbon",
             "country": "PT",
@@ -304,7 +304,7 @@ class ProfileReaderTests(unittest.TestCase):
         }))
         os.environ["AGENT_PROFILE"] = str(path)
         profile.get_profile(force_reload=True)
-        self.assertEqual(profile.user_name(), "Eduardo")
+        self.assertEqual(profile.user_name(), "Alex")
         self.assertEqual(profile.timezone(), "Europe/Lisbon")
         self.assertTrue(profile.is_away())
         self.assertEqual(profile.effective_timezone(), "Asia/Tokyo")
