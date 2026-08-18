@@ -599,6 +599,101 @@ async def llm_test():
             "model": llm_mod.DEFAULT_MODEL}
 
 
+# ── the bridge: shared logic lives ONCE here, every language calls it ───
+# These endpoints are what let TypeScript (and any future language) mini-apps
+# use the full platform without re-implementing it. Node sidecars, Python
+# mini-apps, and skills all reach the same brain over loopback HTTP. The
+# trust level is identical to an in-process mini-app (which could import
+# agentboom_sdk directly), and the platform is loopback-only by default.
+
+
+@app.post("/api/llm/complete")
+async def llm_complete(payload: dict):
+    """One-shot completion. {prompt, system?, model?, temperature?,
+    max_tokens?, timeout?, json?} — with json:true the answer is parsed
+    to an object (extraction happens HERE, once, not per-language)."""
+    from agentboom_sdk import llm as llm_mod
+    prompt = (payload.get("prompt") or "").strip()
+    if not prompt:
+        return Response(content="prompt is required", status_code=400,
+                        media_type="text/plain")
+    if not llm_mod.BASE_URL:
+        return Response(content="LLM_BASE_URL is not set (see .env.example)",
+                        status_code=503, media_type="text/plain")
+    kwargs = {}
+    for key in ("system", "model"):
+        if payload.get(key):
+            kwargs[key] = payload[key]
+    for key in ("temperature", "max_tokens", "timeout"):
+        if payload.get(key) is not None:
+            kwargs[key] = payload[key]
+    try:
+        if payload.get("json"):
+            result = await llm_mod.complete_json(prompt, **kwargs)
+            return {"ok": result is not None, "json": result}
+        result = await llm_mod.complete(prompt, **kwargs)
+        return {"ok": True, "text": result}
+    except Exception as exc:  # noqa: BLE001
+        return Response(content=str(exc)[:300], status_code=502,
+                        media_type="text/plain")
+
+
+@app.post("/api/agent/ask")
+async def agent_ask(payload: dict):
+    """Run one agent turn. {prompt, conversation?, timeout?} — the SSE
+    collection happens HERE (Python), callers get the final answer."""
+    from agentboom_sdk import agent as agent_mod
+    prompt = (payload.get("prompt") or "").strip()
+    if not prompt:
+        return Response(content="prompt is required", status_code=400,
+                        media_type="text/plain")
+    kwargs = {}
+    if payload.get("conversation"):
+        kwargs["conversation"] = payload["conversation"]
+    if payload.get("timeout"):
+        kwargs["timeout"] = payload["timeout"]
+    if payload.get("json"):
+        result = await agent_mod.ask_json(prompt, **kwargs)
+        return {"ok": result is not None, "json": result}
+    result = await agent_mod.ask(prompt, **kwargs)
+    return {"ok": result is not None, "text": result}
+
+
+@app.post("/api/bridge/db")
+async def bridge_db(payload: dict):
+    """Database access for non-Python mini-apps. Delegates to the SAME
+    agentboom_sdk.db used everywhere else, so placeholder interop and
+    backend selection (SQLite/Postgres) live once.
+
+    ops: execute | fetchone | fetchall | fetchval | batch
+    batch runs [{sql, params}] atomically in one transaction.
+    """
+    op = payload.get("op")
+    sql = payload.get("sql")
+    params = payload.get("params") or []
+    try:
+        if op == "execute":
+            rowcount = await db.execute(sql, *params)
+            return {"ok": True, "rowcount": rowcount}
+        if op == "fetchone":
+            return {"ok": True, "row": await db.fetchone(sql, *params)}
+        if op == "fetchall":
+            return {"ok": True, "rows": await db.fetchall(sql, *params)}
+        if op == "fetchval":
+            return {"ok": True, "value": await db.fetchval(sql, *params)}
+        if op == "batch":
+            async with db.transaction() as conn:
+                for stmt in payload.get("statements") or []:
+                    await conn.execute(stmt.get("sql"),
+                                       *(stmt.get("params") or []))
+            return {"ok": True}
+        return Response(content=f"unknown op '{op}'", status_code=400,
+                        media_type="text/plain")
+    except Exception as exc:  # noqa: BLE001 — surfaced to the caller
+        return Response(content=str(exc)[:300], status_code=500,
+                        media_type="text/plain")
+
+
 @app.get("/api/agent/brief", response_class=Response)
 async def agent_brief():
     """Compact markdown brief for agents (also: GET /api/catalog for JSON)."""

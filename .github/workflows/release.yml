@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
+    runs-on: ubuntu-latest  # public repo -> free hosted minutes; if the org ever pays for public-repo Actions, switch to [self-hosted, self-hosted-linux, owl-deploy]
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
 
   publish:
     needs: build
-    runs-on: [self-hosted, self-hosted-linux, owl-deploy]
+    runs-on: ubuntu-latest  # public repo -> free hosted minutes; if the org ever pays for public-repo Actions, switch to [self-hosted, self-hosted-linux, owl-deploy]
     permissions:
       contents: write
     steps:

@@ -1,17 +1,19 @@
 /**
- * One-shot LLM completions — mirror of agentboom_sdk.llm.
+ * One-shot LLM completions — a BRIDGE to the gateway's single LLM layer.
  *
- * Any OpenAI-compatible endpoint: your own local server with your own
- * model tags (llama.cpp/vLLM/Ollama/LiteLLM) or a hosted API. Config via
- * env, same names as the Python SDK: LLM_BASE_URL / LLM_API_KEY /
- * LLM_MODEL / LLM_TIMEOUT_SEC.
+ * Model endpoint, key, and tags are configured ONCE in the platform's
+ * .env (LLM_BASE_URL / LLM_API_KEY / LLM_MODEL). This client forwards to
+ * POST /api/llm/complete, so Node mini-apps share the exact same LLM
+ * wiring as everything else — and JSON extraction happens in the gateway,
+ * once, not per-language.
  */
-import { env, envFloat } from "./config.js";
+import { env } from "./config.js";
 
-export const BASE_URL = env("LLM_BASE_URL").replace(/\/$/, "");
-export const API_KEY = env("LLM_API_KEY");
-export const DEFAULT_MODEL = env("LLM_MODEL", "qwen-plus");
-export const DEFAULT_TIMEOUT_SEC = envFloat("LLM_TIMEOUT_SEC", 120);
+export const PLATFORM_INTERNAL_URL = env(
+  "PLATFORM_INTERNAL_URL",
+  "http://127.0.0.1:8000",
+);
+const COMPLETE_URL = `${PLATFORM_INTERNAL_URL}/api/llm/complete`;
 
 export class LLMError extends Error {}
 
@@ -23,106 +25,48 @@ export interface CompleteOptions {
   timeoutSec?: number;
 }
 
-/** One completion. Raises LLMError on transport/API failure. */
-export async function complete(prompt: string, opts: CompleteOptions = {}): Promise<string> {
-  if (!BASE_URL) {
-    throw new LLMError("LLM_BASE_URL is not set — see .env.example for setup");
-  }
-  const messages: Array<{ role: string; content: string }> = [];
-  if (opts.system) messages.push({ role: "system", content: opts.system });
-  messages.push({ role: "user", content: prompt });
-
+async function post(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   let resp: Response;
   try {
-    resp = await fetch(`${BASE_URL}/chat/completions`, {
+    resp = await fetch(COMPLETE_URL, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(API_KEY ? { authorization: `Bearer ${API_KEY}` } : {}),
-      },
-      body: JSON.stringify({
-        model: opts.model || DEFAULT_MODEL,
-        messages,
-        temperature: opts.temperature ?? 0.2,
-        max_tokens: opts.maxTokens ?? 2048,
-      }),
-      signal: AbortSignal.timeout((opts.timeoutSec ?? DEFAULT_TIMEOUT_SEC) * 1000),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
     });
   } catch (err) {
-    throw new LLMError(`LLM unreachable at ${BASE_URL}: ${err}`);
+    throw new LLMError(`llm bridge unreachable at ${COMPLETE_URL}: ${err}`);
   }
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    throw new LLMError(`LLM HTTP ${resp.status}: ${text.slice(0, 300)}`);
-  }
-  const data = (await resp.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new LLMError("LLM returned no content");
-  return content;
+  const text = await resp.text();
+  if (!resp.ok) throw new LLMError(`llm bridge error: ${text.slice(0, 300)}`);
+  return JSON.parse(text) as Record<string, unknown>;
 }
 
-/**
- * Find a JSON object in model output (models wrap JSON in prose or code
- * fences). String/escape-aware brace scanning — braces inside JSON string
- * values do not close the span early.
- */
-export function extractJson(text: string): Record<string, unknown> | null {
-  if (!text) return null;
-  const candidates: string[] = [];
-
-  const fenced = text.match(/```(?:json)?\s*(\{.*?\})\s*```/s);
-  if (fenced) candidates.push(fenced[1]);
-
-  let depth = 0;
-  let start = -1;
-  let inStr = false;
-  let escape = false;
-  const spans: string[] = [];
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    if (inStr) {
-      if (escape) escape = false;
-      else if (ch === "\\") escape = true;
-      else if (ch === '"') inStr = false;
-      continue;
-    }
-    if (ch === '"') inStr = true;
-    else if (ch === "{") {
-      if (depth === 0) start = i;
-      depth += 1;
-    } else if (ch === "}" && depth > 0) {
-      depth -= 1;
-      if (depth === 0 && start >= 0) spans.push(text.slice(start, i + 1));
-    }
-  }
-  candidates.push(...spans.sort((a, b) => b.length - a.length));
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      // keep trying the next candidate
-    }
-  }
-  return null;
+/** One completion. Throws LLMError when the gateway/LLM fails. */
+export async function complete(prompt: string, opts: CompleteOptions = {}): Promise<string> {
+  const r = await post({
+    prompt,
+    system: opts.system,
+    model: opts.model,
+    temperature: opts.temperature,
+    max_tokens: opts.maxTokens,
+    timeout: opts.timeoutSec,
+  });
+  return (r.text as string) ?? "";
 }
 
-/** Ask for JSON; one retry with a reminder. Null when unparseable. */
+/** Ask for JSON; parsed in the gateway. Null when unparseable. */
 export async function completeJson(
   prompt: string,
   opts: CompleteOptions = {},
 ): Promise<Record<string, unknown> | null> {
-  const reminder =
-    "\n\nReminder: reply with a single JSON object, no prose, no code fences.";
-  for (const attempt of [0, 1]) {
-    const text = await complete(attempt === 0 ? prompt : prompt + reminder, opts);
-    const parsed = extractJson(text);
-    if (parsed) return parsed;
-  }
-  return null;
+  const r = await post({
+    prompt,
+    json: true,
+    system: opts.system,
+    model: opts.model,
+    temperature: opts.temperature,
+    max_tokens: opts.maxTokens,
+    timeout: opts.timeoutSec,
+  });
+  return r.ok ? ((r.json as Record<string, unknown>) ?? null) : null;
 }

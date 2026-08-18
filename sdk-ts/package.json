@@ -1,7 +1,7 @@
 {
   "name": "@agentboom/sdk",
   "version": "0.7.0",
-  "description": "agentboom SDK for Node mini-apps — the TypeScript twin of agentboom_sdk (Python). Same seams: db, capabilities, llm, agent, cron, idle.",
+  "description": "agentboom SDK for Node/TypeScript mini-apps. This is a BRIDGE, not a re-implementation: all shared logic (db, llm, agent, capabilities) lives once in the platform gateway, and this package is a thin loopback-HTTP client onto it. No duplicated logic, no native dependencies.",
   "type": "module",
   "license": "MIT",
   "main": "dist/index.js",
@@ -20,14 +20,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "node --test tests/"
   },
-  "dependencies": {
-    "better-sqlite3": "^11.3.0",
-    "pg": "^8.12.0"
-  },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22.5.0",
-    "@types/pg": "^8.11.6",
     "typescript": "^5.5.4"
   },
   "engines": {
