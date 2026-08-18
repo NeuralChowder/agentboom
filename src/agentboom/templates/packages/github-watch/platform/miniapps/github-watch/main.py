@@ -125,9 +125,9 @@ async def _check_repo(repo: str, notify: bool = False) -> int:
         raise
     for issue in issues:
         inserted = await db.execute(
-            "INSERT OR IGNORE INTO github_events "
+            "INSERT INTO github_events "
             "(repo, kind, ref, title, url, actor, github_created_at) "
-            "VALUES (?, 'issue', ?, ?, ?, ?, ?)",
+            "VALUES (?, 'issue', ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
             (repo, f"issue-{issue['number']}", issue["title"],
              issue["url"], issue["actor"], issue["created_at"]),
         )
@@ -141,9 +141,9 @@ async def _check_repo(repo: str, notify: bool = False) -> int:
                 })
     for rel in releases:
         inserted = await db.execute(
-            "INSERT OR IGNORE INTO github_events "
+            "INSERT INTO github_events "
             "(repo, kind, ref, title, url, github_created_at) "
-            "VALUES (?, 'release', ?, ?, ?, ?)",
+            "VALUES (?, 'release', ?, ?, ?, ?) ON CONFLICT DO NOTHING",
             (repo, f"release-{rel['tag']}", rel["name"], rel["url"],
              rel["published_at"]),
         )

@@ -62,13 +62,20 @@ async def add_note(payload: dict):
     if not title or not body:
         return JSONResponse({"error": "title and body are required"},
                             status_code=400)
-    await db.execute(
-        "INSERT INTO knowledge_notes (title, body, tags, source) "
-        "VALUES (?, ?, ?, ?)",
-        (title[:300], body, _norm_tags(payload.get("tags")),
-         (payload.get("source") or "")[:300] or None))
-    row = await db.fetchone(
-        "SELECT * FROM knowledge_notes WHERE id = last_insert_rowid()")
+    if db.is_postgres():
+        row = await db.fetchone(
+            "INSERT INTO knowledge_notes (title, body, tags, source) "
+            "VALUES (?, ?, ?, ?) RETURNING *",
+            (title[:300], body, _norm_tags(payload.get("tags")),
+             (payload.get("source") or "")[:300] or None))
+    else:
+        await db.execute(
+            "INSERT INTO knowledge_notes (title, body, tags, source) "
+            "VALUES (?, ?, ?, ?)",
+            (title[:300], body, _norm_tags(payload.get("tags")),
+             (payload.get("source") or "")[:300] or None))
+        row = await db.fetchone(
+            "SELECT * FROM knowledge_notes WHERE id = last_insert_rowid()")
     log.info("knowledge: stored '%s'", title[:60])
     return {"ok": True, "note": dict(row)}
 

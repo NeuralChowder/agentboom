@@ -289,17 +289,23 @@ async def add_transaction(payload: dict):
         if not cat:
             return JSONResponse({"error": "unknown category"}, status_code=400)
         category_id = cat["id"]
-    await db.execute(
+    insert_sql = (
         "INSERT INTO finance_transactions "
-        "(category_id, amount, currency, direction, description, status, occurred_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
-        (category_id, payload.get("amount"),
-         (payload.get("currency") or CURRENCY).upper(),
-         payload.get("direction"), description,
-         "confirmed" if payload.get("amount") else "pending",
-         payload.get("occurred_at")))
-    row = await db.fetchone(
-        "SELECT * FROM finance_transactions WHERE id = last_insert_rowid()")
+        "(category_id, amount, currency, direction, description, status, "
+        " occurred_at) VALUES (?, ?, ?, ?, ?, ?, "
+        "COALESCE(?, CURRENT_TIMESTAMP))")
+    insert_params = (
+        category_id, payload.get("amount"),
+        (payload.get("currency") or CURRENCY).upper(),
+        payload.get("direction"), description,
+        "confirmed" if payload.get("amount") else "pending",
+        payload.get("occurred_at"))
+    if db.is_postgres():
+        row = await db.fetchone(insert_sql + " RETURNING *", insert_params)
+    else:
+        await db.execute(insert_sql, insert_params)
+        row = await db.fetchone(
+            "SELECT * FROM finance_transactions WHERE id = last_insert_rowid()")
     return {"ok": True, "transaction": dict(row)}
 
 

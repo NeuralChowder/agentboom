@@ -71,8 +71,8 @@ async def handle_event(event: dict) -> None:
     if not email_id:
         return
     await db.execute(
-        "INSERT OR IGNORE INTO attention_items (email_id, account_email) "
-        "VALUES (?, ?)",
+        "INSERT INTO attention_items (email_id, account_email) "
+        "VALUES (?, ?) ON CONFLICT DO NOTHING",
         (email_id, data.get("account_email")))
 
 

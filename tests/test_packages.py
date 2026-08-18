@@ -1,10 +1,15 @@
 """Tests for optional packages (`agentboom add package`)."""
 import argparse
 import json
+import pathlib
+import tempfile
+import unittest
 
 from agentboom.commands import packages as packages_cmd
 
 from helpers import AgentTestCase
+
+_TMP = pathlib.Path(tempfile.mkdtemp(prefix="agentboom-pkg-tests-"))
 
 
 def _pkg_args(name, agent_dir):
@@ -157,6 +162,86 @@ class EmailStackTests(AgentTestCase):
             (self.agent_dir / ".qwen-docker/skills/email-manager/SKILL.md").is_file())
         result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
         self.assertTrue(result["ok"], result["checks"])
+
+
+class UseCaseEnginePackagesTests(AgentTestCase):
+    """finance / documents / digests: engines whose use cases are defined
+    through their APIs — install + validate must be green standalone."""
+
+    def test_standalone_engines_install_and_validate(self):
+        from agentboom.commands import validate as validate_cmd
+        for name in ("finance", "documents", "digests", "knowledge", "storage"):
+            packages_cmd.run_add_package(_pkg_args(name, self.agent_dir))
+        base = self.agent_dir / "platform"
+        self.assertTrue((base / "migrations/008_finance.sql").is_file())
+        self.assertTrue((base / "migrations/009_documents.sql").is_file())
+        self.assertTrue((base / "migrations/010_digests.sql").is_file())
+        self.assertTrue((base / "miniapps/finance/main.py").is_file())
+        self.assertTrue((base / "miniapps/documents/main.py").is_file())
+        self.assertTrue((base / "miniapps/digests/main.py").is_file())
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+    def test_calendar_requires_vault_and_installs_with_it(self):
+        from agentboom.commands import validate as validate_cmd
+        with self.assertRaises(packages_cmd.PackageError) as ctx:
+            packages_cmd.run_add_package(_pkg_args("calendar", self.agent_dir))
+        self.assertIn("requires: vault", str(ctx.exception))
+        packages_cmd.run_add_package(_pkg_args("vault", self.agent_dir))
+        result = packages_cmd.run_add_package(_pkg_args("calendar", self.agent_dir))
+        self.assertTrue(result["ok"])
+        base = self.agent_dir / "platform"
+        self.assertTrue((base / "connectors/caldav/__init__.py").is_file())
+        self.assertTrue((base / "migrations/011_calendar.sql").is_file())
+        self.assertTrue((base / "miniapps/calendar/main.py").is_file())
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+    def test_every_migration_ships_a_postgres_variant(self):
+        """Dual-database doctrine: each package migration may be applied on
+        SQLite (default, zero setup) or PostgreSQL (.pg.sql variant)."""
+        from agentboom import registries as registries_mod
+        root = registries_mod.packages_root()
+        for pkg in root.iterdir():
+            migrations = pkg / "platform" / "migrations"
+            if not migrations.is_dir():
+                continue
+            for base in migrations.glob("[0-9]*.sql"):
+                if base.name.endswith(".pg.sql"):
+                    continue
+                self.assertTrue(
+                    (migrations / (base.stem + ".pg.sql")).is_file(),
+                    f"{pkg.name}: {base.name} has no .pg.sql variant")
+
+
+class MigrationDialectTests(unittest.TestCase):
+    """The runner picks the .pg.sql variant only on PostgreSQL agents."""
+
+    def _dir_with_pair(self) -> pathlib.Path:
+        d = pathlib.Path(tempfile.mkdtemp(dir=_TMP))
+        (d / "001_thing.sql").write_text("-- sqlite/base\n")
+        (d / "001_thing.pg.sql").write_text("-- postgres variant\n")
+        (d / "002_plain.sql").write_text("-- shared\n")
+        return d
+
+    def test_sqlite_backend_uses_base_files(self):
+        from agentboom_sdk import db
+        self.assertFalse(db.is_postgres())  # tests run SQLite-only
+        selected = db._select_migration_files(self._dir_with_pair())
+        self.assertEqual(sorted(selected), ["001_thing.sql", "002_plain.sql"])
+        self.assertFalse(selected["001_thing.sql"].name.endswith(".pg.sql"))
+
+    def test_postgres_backend_prefers_pg_variant(self):
+        from agentboom_sdk import db
+        original = db._use_postgres
+        db._use_postgres = lambda: True
+        try:
+            selected = db._select_migration_files(self._dir_with_pair())
+        finally:
+            db._use_postgres = original
+        self.assertEqual(sorted(selected), ["001_thing.sql", "002_plain.sql"])
+        self.assertTrue(selected["001_thing.sql"].name.endswith(".pg.sql"))
+        self.assertEqual(selected["002_plain.sql"].name, "002_plain.sql")
 
 
 if __name__ == "__main__":

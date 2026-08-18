@@ -64,9 +64,9 @@ async def add_feed(payload: dict):
     feed_id = row["id"] if row else None
     for item in feed["items"]:
         await db.execute(
-            "INSERT OR IGNORE INTO feed_items "
+            "INSERT INTO feed_items "
             "(feed_id, guid, title, link, summary, published) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
             (feed_id, item["guid"], item["title"], item["link"],
              item["summary"], item["published"]),
         )
@@ -126,9 +126,9 @@ async def poll_all():
         new_here = 0
         for item in parsed["items"]:
             inserted = await db.execute(
-                "INSERT OR IGNORE INTO feed_items "
+                "INSERT INTO feed_items "
                 "(feed_id, guid, title, link, summary, published) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
                 (feed["id"], item["guid"], item["title"], item["link"],
                  item["summary"], item["published"]),
             )

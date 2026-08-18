@@ -35,7 +35,7 @@ GitHub release asset of NeuralChowder/agentboom):
 |---|---|
 | `agentboom_sdk.config` | env parsing helpers |
 | `agentboom_sdk.log` | logging setup |
-| `agentboom_sdk.db` | SQLite (WAL) + migration runner |
+| `agentboom_sdk.db` | SQLite by default (zero setup), PostgreSQL when `DATABASE_URI` is set; unified API + migration runner (`is_postgres()` to branch) |
 | `agentboom_sdk.agent` | run agent turns via `qwen serve` HTTP (`ask`) |
 | `agentboom_sdk.llm` | one-shot completions (`complete`, `complete_json`) |
 | `agentboom_sdk.cron` | cron parsing + next-fire |
@@ -56,7 +56,7 @@ edits without `--force`).
 | New agent procedure/knowledge | skill: `.qwen-docker/skills/<name>/SKILL.md` + `references/` + `scripts/` |
 | Scheduled work | manifest `jobs` (cron or interval; `http` or `agent` type) — never host crontabs |
 | Cross-capability signals | `agentboom_sdk.events` publish/subscribe (manifest `subscribes` + `handle_event`) |
-| New schema | numbered SQL migration in `platform/migrations/` (append-only) |
+| New schema | numbered SQL migration in `platform/migrations/` (append-only). Write portable SQL (no `AUTOINCREMENT`, no dialect date functions — compute dates in Python); when a dialect truly differs, ship a `NNN_name.pg.sql` variant next to `NNN_name.sql` — the runner uses it on PostgreSQL agents. SQLite stays the zero-setup default: users never need Postgres. |
 | Repeatable integration | `agentboom add package <name>` (telegram, rich-link, vault, ...) |
 | New domain tooling | apt packages via `EXTRA_APT_PACKAGES` or extra `RUN` layers in the root Dockerfile |
 

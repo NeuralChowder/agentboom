@@ -54,8 +54,9 @@ async def handle_event(event: dict) -> None:
             continue
         # UNIQUE(collection_id, email_id) dedupes across repeated events.
         await db.execute(
-            "INSERT OR IGNORE INTO documents "
-            "(collection_id, source, email_id, title) VALUES (?, 'email', ?, ?)",
+            "INSERT INTO documents "
+            "(collection_id, source, email_id, title) "
+            "VALUES (?, 'email', ?, ?) ON CONFLICT DO NOTHING",
             (collection["id"], data["email_id"],
              data.get("subject") or "(no subject)"))
         log.info("documents: filed '%s' into '%s'",
@@ -186,15 +187,24 @@ async def add_document(payload: dict):
     if not collection:
         return JSONResponse(
             {"error": "unknown collection — create it first"}, status_code=400)
-    await db.execute(
-        "INSERT INTO documents "
-        "(collection_id, source, email_id, title, notes, file_name) "
-        "VALUES (?, 'manual', ?, ?, ?, ?)",
-        (collection["id"], payload.get("email_id"), title[:300],
-         (payload.get("notes") or "").strip() or None,
-         (payload.get("file_name") or "").strip() or None))
-    row = await db.fetchone(
-        "SELECT * FROM documents WHERE id = last_insert_rowid()")
+    if db.is_postgres():
+        row = await db.fetchone(
+            "INSERT INTO documents "
+            "(collection_id, source, email_id, title, notes, file_name) "
+            "VALUES (?, 'manual', ?, ?, ?, ?) RETURNING *",
+            (collection["id"], payload.get("email_id"), title[:300],
+             (payload.get("notes") or "").strip() or None,
+             (payload.get("file_name") or "").strip() or None))
+    else:
+        await db.execute(
+            "INSERT INTO documents "
+            "(collection_id, source, email_id, title, notes, file_name) "
+            "VALUES (?, 'manual', ?, ?, ?, ?)",
+            (collection["id"], payload.get("email_id"), title[:300],
+             (payload.get("notes") or "").strip() or None,
+             (payload.get("file_name") or "").strip() or None))
+        row = await db.fetchone(
+            "SELECT * FROM documents WHERE id = last_insert_rowid()")
     return {"ok": True, "document": dict(row)}
 
 

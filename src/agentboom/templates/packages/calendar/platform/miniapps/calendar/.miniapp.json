@@ -1,0 +1,12 @@
+{
+  "name": "calendar",
+  "description": "CalDAV calendars: accounts via API + vault, synced events, today/upcoming/range agenda.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "sync", "type": "http", "target": "sync",
+     "cron": "*/30 * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": null
+}

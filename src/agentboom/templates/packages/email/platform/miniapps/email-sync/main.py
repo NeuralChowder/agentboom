@@ -95,10 +95,10 @@ async def sync_now():
                 total_skipped += 1
                 continue
             inserted = await db.execute(
-                "INSERT OR IGNORE INTO emails "
+                "INSERT INTO emails "
                 "(account_id, folder, uid, message_id, from_email, from_name, "
                 " subject, received_at, has_attachment, body_text) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
                 (account["id"], msg["folder"], msg["uid"], msg["message_id"],
                  msg["from_email"], msg["from_name"], msg["subject"],
                  msg["received_at"], msg["has_attachment"], msg["body_text"]))
