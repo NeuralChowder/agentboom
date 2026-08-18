@@ -1,4 +1,4 @@
-# agentboom is a pure-Python, stdlib-only project — keep it that way.
+# Python — the CLI and SDK stay stdlib-only.
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,5 +7,11 @@ dist/
 .venv/
 venv/
 .pytest_cache/
+
+# JavaScript (ui/, dashboard/) — dependencies and build output stay local.
+node_modules/
+.next/
+*.tsbuildinfo
+
 .DS_Store
 *.log
