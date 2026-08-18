@@ -60,6 +60,14 @@ def env_vars(meta: dict) -> list:
     return names
 
 
+def derender(text: str) -> str:
+    """Package text is a template; the site shows generic placeholders."""
+    return (text.replace("{{PORT_PLATFORM}}", "<platform-port>")
+                .replace("{{PORT_AGENT}}", "<agent-port>")
+                .replace("{{AGENT_NAME}}", "<agent-name>")
+                .replace("{{AGENT_TITLE}}", "<agent-title>"))
+
+
 def render_packages_md(packages: list) -> str:
     lines = [
         GENERATED_BANNER,
@@ -95,7 +103,8 @@ def render_packages_md(packages: list) -> str:
             ]
         for pkg in group:
             icon = f"{pkg['icon']} " if pkg.get("icon") else ""
-            lines += [f"### {icon}`{pkg['name']}`", "", pkg.get("description", ""), ""]
+            lines += [f"### {icon}`{pkg['name']}`", "",
+                      derender(pkg.get("description", "")), ""]
             requires = pkg.get("requires") or []
             if requires:
                 lines.append(f"**Requires:** {', '.join(f'`{r}`' for r in requires)}  ")
@@ -112,7 +121,7 @@ def render_packages_md(packages: list) -> str:
                 lines.append("Setup:")
                 lines.append("")
                 for step in post:
-                    lines.append(f"- {step}")
+                    lines.append(f"- {derender(step)}")
                 lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 

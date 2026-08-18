@@ -176,7 +176,10 @@ def run_add_package(args) -> dict:
         "skipped_existing": skipped,
         "requirements_added": added_reqs,
         "env_example_added": added_env,
-        "post_install": meta.get("post_install", []),
+        # Rendered like every other shipped text — instructions show the
+        # agent's real ports instead of raw {{PLACEHOLDER}} names.
+        "post_install": [render_text(line, variables)
+                         for line in meta.get("post_install", [])],
     }
 
 
