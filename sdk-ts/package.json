@@ -1,0 +1,41 @@
+{
+  "name": "@agentboom/sdk",
+  "version": "0.7.0",
+  "description": "agentboom SDK for Node mini-apps — the TypeScript twin of agentboom_sdk (Python). Same seams: db, capabilities, llm, agent, cron, idle.",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.5.0",
+    "@types/pg": "^8.11.6",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NeuralChowder/agentboom",
+    "directory": "sdk-ts"
+  }
+}

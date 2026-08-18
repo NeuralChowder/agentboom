@@ -190,8 +190,14 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaises(runtimes.RuntimeError_):
             spec.launch_argv("x")
 
-    def test_install_runtime_reports_existing(self):
+    def test_install_runtime_behavior(self):
+        import shutil
         from agentboom import runtimes
         result = runtimes.install_runtime("qwen")
         self.assertTrue(result["ok"])
-        self.assertFalse(result["installed"])  # qwen already on PATH here
+        if shutil.which("qwen"):
+            self.assertFalse(result["installed"])
+        else:
+            # no qwen on this machine: the install command is offered
+            self.assertIn("npm install -g @qwen-code/qwen-code",
+                          result["command"])

@@ -46,6 +46,10 @@ services:
         USER_NAME: ${USER_NAME:-user}
     init: true
     restart: unless-stopped
+    # host.docker.internal -> the host, so a local LLM server is reachable
+    # from inside the container without extra config (Linux + Docker 20.10+).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - DATA_DIR=/data
       - PLATFORM_ADMIN_PASSWORD=${PLATFORM_ADMIN_PASSWORD}
