@@ -31,11 +31,33 @@ Two distributables, one version:
 
 ## Install
 
+Requires **Python 3.10+**. Works on Linux, macOS, and Windows.
+
+**Recommended — `pipx`** (isolates the install and puts `agentboom` on PATH):
+
 ```bash
-pipx install .            # the agentboom command
+pipx install .
 # or straight from a GitHub release:
 pipx install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
 ```
+
+**No `pipx`? Plain `pip` works too:**
+
+```bash
+pip install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
+```
+
+`pip` may put the `agentboom` command somewhere not on your `PATH`
+(`~/.local/bin` on Linux, `~/Library/Python/3.x/bin` on macOS,
+`%APPDATA%\Python\...\Scripts` on Windows). Two easy fixes:
+
+- **Run it as a module — always works, no PATH setup:**
+  ```bash
+  python3 -m agentboom ...     # Linux / macOS
+  python  -m agentboom ...     # Windows
+  ```
+- **Or put pip's scripts dir on PATH once**, then use `agentboom` directly
+  (e.g. `export PATH="$HOME/.local/bin:$PATH"` on Linux).
 
 ## Quickstart
 
