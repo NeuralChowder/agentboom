@@ -14,6 +14,13 @@ agentboom_sdk.events      in-process pub/sub event bus
 agentboom_sdk.untrusted   fencing + injection scoring for external content
 agentboom_sdk.accepted    one canonical 'started, not finished' envelope
 agentboom_sdk.idle        let scheduled jobs prove there is nothing to do
+agentboom_sdk.profile     the user profile (name/language/timezone/country)
+agentboom_sdk.capabilities resolve + call capabilities other apps provide
+agentboom_sdk.voice       assistant identity: deterministic sign-offs that
+                          never sign as the principal
+agentboom_sdk.activity    a human-readable activity feed (never raises)
+agentboom_sdk.http        safe headers for serving files someone else chose
+agentboom_sdk.fetch       SSRF-safe fetching of links from untrusted messages
 agentboom_sdk.services.scheduler
                           SQLite-backed scheduler for manifest-declared jobs
 

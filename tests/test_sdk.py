@@ -195,9 +195,93 @@ class AcceptedTests(unittest.TestCase):
         self.assertEqual(env["job_id"], 7)
 
 
-class ProfileTests(unittest.TestCase):
-    """The global profile reader: defaults <- file, never raises."""
+class HttpHeadersTests(unittest.TestCase):
+    def test_disposition_survives_accented_filename(self):
+        from agentboom_sdk.http import content_disposition, download_headers
+        # Decomposed accent (e + U+0301) — the case that breaks latin-1 headers.
+        name = "Fatura eleit\u0074\u0301rica.pdf"
+        disp = content_disposition(name)
+        disp.encode("latin-1")  # must not raise
+        self.assertIn("filename*=UTF-8''", disp)
+        headers = download_headers(name, media_type="application/pdf")
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
 
+    def test_inline_downgraded_for_active_types(self):
+        from agentboom_sdk.http import download_headers
+        # SVG executes script — must not be served inline even if requested.
+        headers = download_headers("x.svg", inline=True, media_type="image/svg+xml")
+        self.assertTrue(headers["Content-Disposition"].startswith("attachment"))
+        # A PDF is safe to render inline.
+        headers = download_headers("x.pdf", inline=True, media_type="application/pdf")
+        self.assertTrue(headers["Content-Disposition"].startswith("inline"))
+
+
+class VoiceTests(unittest.TestCase):
+    def test_sign_closes_as_assistant_not_principal(self):
+        from agentboom_sdk import voice
+        signed = voice.sign("Here is the report.", language="en",
+                            principal="Eduardo Pinheiro")
+        self.assertIn("Assistant to Eduardo Pinheiro", signed)
+        self.assertFalse(voice.signs_as_principal(signed, "Eduardo Pinheiro"))
+
+    def test_signs_as_principal_detects_bare_name(self):
+        from agentboom_sdk import voice
+        text = "Thanks!\n\nEduardo Pinheiro"
+        self.assertTrue(voice.signs_as_principal(text, "Eduardo Pinheiro"))
+        prose = "As Eduardo Pinheiro mentioned earlier, we agree."
+        self.assertFalse(voice.signs_as_principal(prose, "Eduardo Pinheiro"))
+
+    def test_sign_is_idempotent(self):
+        from agentboom_sdk import voice
+        once = voice.sign("Body.", language="en", principal="Eduardo Pinheiro")
+        twice = voice.sign(once, language="en", principal="Eduardo Pinheiro")
+        self.assertEqual(twice.count("Assistant to Eduardo Pinheiro"), 1)
+
+    def test_greeting_returns_known_words(self):
+        from agentboom_sdk import voice
+        self.assertIn(voice.greeting("en"),
+                      ("Good morning", "Good afternoon", "Good evening"))
+
+    def test_informal_markers_pt_only(self):
+        from agentboom_sdk import voice
+        self.assertIn("podes", voice.informal_markers("Podes enviar isso?", "pt"))
+        self.assertEqual(voice.informal_markers("Can you send it?", "en"), [])
+
+
+class FetchVetTests(unittest.TestCase):
+    """The structural URL guards — no network needed."""
+
+    def test_refuses_non_http_scheme(self):
+        from agentboom_sdk.fetch import _vet
+        _, reason = _vet("file:///etc/passwd", [])
+        self.assertIn("not fetchable", reason)
+
+    def test_refuses_credentials_in_url(self):
+        from agentboom_sdk.fetch import _vet
+        _, reason = _vet("https://user:pass@example.com/doc.pdf", [])
+        self.assertIn("credentials", reason)
+
+    def test_refuses_action_shaped_links(self):
+        from agentboom_sdk.fetch import _vet
+        _, reason = _vet("https://example.com/unsubscribe?id=1", [])
+        self.assertIn("action", reason)
+
+    def test_sender_anchoring(self):
+        from agentboom_sdk.fetch import _vet
+        host, reason = _vet("https://billing.supplier.com/inv.pdf",
+                            ["supplier.com"])
+        self.assertEqual(host, "billing.supplier.com")
+        self.assertEqual(reason, "")
+        _, reason = _vet("https://evil.com/inv.pdf", ["supplier.com"])
+        self.assertIn("not the sender's domain", reason)
+
+    def test_registrable(self):
+        from agentboom_sdk.fetch import _registrable
+        self.assertEqual(_registrable("invoices.tabil.pt"), "tabil.pt")
+        self.assertEqual(_registrable("a.b.example.com"), "example.com")
+
+
+class ProfileReaderTests(unittest.TestCase):
     def test_defaults_when_missing(self):
         from agentboom_sdk import profile
         os.environ["AGENT_PROFILE"] = str(pathlib.Path(_TMP) / "nope.json")
