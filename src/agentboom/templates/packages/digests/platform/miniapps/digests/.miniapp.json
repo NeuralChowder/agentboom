@@ -1,0 +1,12 @@
+{
+  "name": "digests",
+  "description": "Scheduled digests you define: sources + synthesis prompt + schedule, stored and optionally pushed.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "run-due", "type": "http", "target": "run-due",
+     "cron": "*/15 * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": null
+}

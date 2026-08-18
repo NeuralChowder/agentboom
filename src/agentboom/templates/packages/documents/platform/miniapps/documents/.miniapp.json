@@ -1,0 +1,9 @@
+{
+  "name": "documents",
+  "description": "Collections defined by your own rules — matching mail files itself, everything else by API.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": ["email.received"],
+  "ui": null
+}

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS vault_credentials (
 );
 
 CREATE TABLE IF NOT EXISTS vault_audit (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     service TEXT NOT NULL,
     action TEXT NOT NULL,
     detail TEXT,

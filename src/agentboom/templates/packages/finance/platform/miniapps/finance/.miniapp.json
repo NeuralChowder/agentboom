@@ -1,0 +1,12 @@
+{
+  "name": "finance",
+  "description": "Money tracking shaped by your own categories and rules — mail-fed or manual, LLM-classified, human-confirmed.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "classify", "type": "http", "target": "classify",
+     "cron": "*/15 * * * *", "enabled": true}
+  ],
+  "subscribes": ["email.received"],
+  "ui": null
+}

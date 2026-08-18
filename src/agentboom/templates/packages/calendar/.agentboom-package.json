@@ -1,0 +1,20 @@
+{
+  "name": "calendar",
+  "description": "Calendars over CalDAV: accounts added through the API (Fastmail, iCloud, Nextcloud…), events synced and queryable — agenda, today, upcoming.",
+  "kind": "connector",
+  "icon": "📅",
+  "requires": ["vault"],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── Calendar (package: calendar) ──",
+    "# How many days ahead the sync pulls.",
+    "# CAL_SYNC_DAYS=30"
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 011_calendar.sql, hot-loads the apps).",
+    "Add a calendar account: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/calendar/accounts -H 'Content-Type: application/json' -d '{\"label\": \"personal\", \"username\": \"you@fastmail.com\", \"password\": \"app-password\", \"provider\": \"fastmail\"}'",
+    "Providers: fastmail, icloud (app-specific password), nextcloud (your server URL), or 'caldav' with a custom caldav_url. Passwords live in the vault.",
+    "Sync pulls the next 30 days every 30 minutes: GET /api/calendar/upcoming"
+  ]
+}

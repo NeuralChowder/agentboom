@@ -1,0 +1,14 @@
+{
+  "name": "documents",
+  "description": "File documents into collections defined by your own rules: matching mail is filed automatically, anything else by API. Invoices, receipts, warranties, contracts — one engine.",
+  "kind": "addon",
+  "icon": "📄",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 009_documents.sql, hot-loads the app).",
+    "Create a collection with matching rules: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/documents/collections -H 'Content-Type: application/json' -d '{\"name\": \"invoices-acme\", \"match_from\": \"billing@acme.com\"}'",
+    "With the email package, matching mail files itself; without it, add documents manually (optionally referencing files stored by the storage package)."
+  ]
+}

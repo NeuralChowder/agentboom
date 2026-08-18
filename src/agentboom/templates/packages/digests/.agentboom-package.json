@@ -1,0 +1,15 @@
+{
+  "name": "digests",
+  "description": "Scheduled digests you define: pick sources (feeds, recent mail, endpoints), write the synthesis prompt, get the result stored, pushed, or both. Morning briefings, news, repo roundups — one engine.",
+  "kind": "addon",
+  "icon": "🧭",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 010_digests.sql, hot-loads the app).",
+    "Create a digest: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/digests/digests -H 'Content-Type: application/json' -d '{\"name\": \"morning-brief\", \"prompt\": \"Summarise into a short morning briefing.\", \"interval_min\": 1440}'",
+    "Add sources: POST /api/digests/digests/{id}/sources with {\"kind\": \"feed\", \"ref\": \"https://.../feed.xml\"} (kinds: feed, emails, endpoint).",
+    "Delivery upgrades automatically: with the ntfy package the digest is pushed to your phone; with the LLM gateway it is synthesized (without it, raw material is stored)."
+  ]
+}

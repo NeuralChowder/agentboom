@@ -559,6 +559,35 @@ async def transaction() -> AsyncIterator[Any]:
                 raise
 
 
+def is_postgres() -> bool:
+    """True when the agent runs on PostgreSQL (DATABASE_URI is set).
+
+    The default is SQLite on the data volume — nothing requires
+    Postgres. Mini-apps that must vary SQL by backend branch on this.
+    """
+    return _use_postgres()
+
+
+def _select_migration_files(migrations_dir: Path) -> Dict[str, Path]:
+    """One effective file per migration, keyed by its canonical name.
+
+    `NNN_name.sql` is the base (SQLite-first — the zero-setup default).
+    `NNN_name.pg.sql`, when present, REPLACES it on PostgreSQL agents —
+    the escape hatch for the few things the dialects genuinely disagree
+    on (identity columns, etc.). The canonical name recorded in
+    _migrations is the base name either way.
+    """
+    selected: Dict[str, Path] = {}
+    for mf in sorted(migrations_dir.glob("*.sql")):
+        if mf.name.endswith(".pg.sql"):
+            base = mf.name[: -len(".pg.sql")] + ".sql"
+            if _use_postgres():
+                selected[base] = mf
+            continue
+        selected.setdefault(mf.name, mf)
+    return selected
+
+
 async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
     """Apply pending numbered .sql migrations.
 
@@ -566,7 +595,9 @@ async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
     <package parent>/migrations (vendored layout) -> <cwd>/migrations
     (normal container layout, where the SDK is pip-installed).
 
-    Migrations are immutable once applied anywhere.
+    Migrations are immutable once applied anywhere. SQLite is the
+    default backend and needs no setup; a migration may ship a
+    `<name>.pg.sql` variant used instead on PostgreSQL agents.
     """
     if migrations_dir is None:
         env_dir = os.environ.get("MIGRATIONS_DIR")
@@ -579,6 +610,8 @@ async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
         log.warning("No migrations directory found at %s", migrations_dir)
         return
 
+    selected = _select_migration_files(migrations_dir)
+
     if _use_postgres():
         async with acquire() as conn:
             await conn.execute(
@@ -588,16 +621,17 @@ async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
             )
             rows = await conn.fetch("SELECT name FROM _migrations")
             applied = {r["name"] for r in rows}
-            for mf in sorted(migrations_dir.glob("*.sql")):
-                if mf.name in applied:
+            for name in sorted(selected):
+                if name in applied:
                     continue
+                mf = selected[name]
                 log.info("Applying migration %s", mf.name)
                 # No parameters: asyncpg uses the simple protocol, which
                 # accepts multi-statement scripts (dollar-quoted bodies ok).
                 await conn.execute(mf.read_text(encoding="utf-8"))
                 await conn.execute(
                     "INSERT INTO _migrations (name) VALUES ($1) "
-                    "ON CONFLICT (name) DO NOTHING", mf.name,
+                    "ON CONFLICT (name) DO NOTHING", name,
                 )
         return
 
@@ -607,9 +641,10 @@ async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
         " applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
     )
     applied = set(r["name"] for r in await fetchall("SELECT name FROM _migrations"))
-    for mf in sorted(migrations_dir.glob("*.sql")):
-        if mf.name in applied:
+    for name in sorted(selected):
+        if name in applied:
             continue
+        mf = selected[name]
         log.info("Applying migration %s", mf.name)
         # executescript() handles multi-statement SQL correctly, including
         # strings containing semicolons. It auto-commits per statement —
@@ -618,7 +653,7 @@ async def run_migrations(migrations_dir: Optional[Path] = None) -> None:
             conn = await get_connection()
             await conn.executescript(mf.read_text(encoding="utf-8"))
         await execute(
-            "INSERT OR IGNORE INTO _migrations (name) VALUES (?)", (mf.name,)
+            "INSERT OR IGNORE INTO _migrations (name) VALUES (?)", (name,)
         )
         log.info("Migration %s applied", mf.name)
 

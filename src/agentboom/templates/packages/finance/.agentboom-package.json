@@ -1,0 +1,20 @@
+{
+  "name": "finance",
+  "description": "Money tracking shaped by your own rules: categories + matching rules + transactions, fed by mail or added manually, LLM-classified with human confirmation.",
+  "kind": "addon",
+  "icon": "🧾",
+  "requires": [],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── Finance (package: finance) ──",
+    "# Currency used when one is not stated.",
+    "# FINANCE_DEFAULT_CURRENCY=EUR"
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 008_finance.sql, hot-loads the app).",
+    "Everything is defined through the API — start with categories, then rules: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/finance/categories -H 'Content-Type: application/json' -d '{\"name\": \"groceries\", \"kind\": \"expense\"}'",
+    "Rules turn matching mail into pending transactions automatically (the email package feeds them; without it, add transactions manually).",
+    "Confirm or fix what the LLM classified: /api/finance/transactions?status=pending"
+  ]
+}

@@ -85,6 +85,10 @@ def render_packages_md(packages: list) -> str:
         "to run when they are missing. Extra package sources — any git "
         "repo or directory — join with `agentboom registries add`.",
         "",
+        "The at-a-glance catalog lives on the site's **Packages** page; "
+        "this page is the how-to: what each package needs and how to "
+        "finish its setup, plus how to write your own.",
+        "",
     ]
 
     groups = [
@@ -123,6 +127,23 @@ def render_packages_md(packages: list) -> str:
                 for step in post:
                     lines.append(f"- {derender(step)}")
                 lines.append("")
+    lines += [
+        "## Make your own package",
+        "",
+        "A package is a folder in `templates/packages/<name>/` with:",
+        "",
+        "- `.agentboom-package.json` — name, icon, description, `kind` "
+        "(`connector` also installs an importable client under "
+        "`platform/connectors/<name>/`), `requirements`, `env_example`, "
+        "`requires`, `post_install` steps;",
+        "- the files it places, mirroring agent paths (`platform/...`, "
+        "`.qwen-docker/...`), rendered with the agent's init variables.",
+        "",
+        "Install semantics: files are copied without overwriting, "
+        "requirement and env lines are appended idempotently, and "
+        "`post_install` steps are printed for the human/agent to finish.",
+        "",
+    ]
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -147,6 +168,21 @@ def main() -> int:
     (content / "packages.md").write_text(render_packages_md(packages),
                                          encoding="utf-8")
     print(f"generated content/packages.md ({len(packages)} packages)")
+
+    catalog = [
+        {
+            "name": pkg["name"],
+            "icon": pkg.get("icon", ""),
+            "description": derender(pkg.get("description", "")),
+            "kind": pkg.get("kind", "add-on"),
+            "requires": pkg.get("requires") or [],
+            "install": f"agentboom add package {pkg['name']}",
+        }
+        for pkg in packages
+    ]
+    (content / "packages-catalog.json").write_text(
+        json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
+    print(f"generated content/packages-catalog.json ({len(catalog)} packages)")
     return 0
 
 
