@@ -1,0 +1,17 @@
+{
+  "name": "google",
+  "description": "Google OAuth2 accounts (Gmail + Calendar): consent flow, vault-stored tokens, automatic refresh.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [
+    {"name": "refresh-tokens", "type": "http", "target": "refresh-all",
+     "cron": "*/30 * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "provides": [
+    {"name": "google.request", "endpoint": "GET /accounts",
+     "description": "authenticated Google API access via connectors.google"}
+  ],
+  "ui": null
+}

@@ -1,0 +1,26 @@
+{
+  "name": "google",
+  "description": "Connect Google accounts via OAuth2 (Gmail + Calendar scopes). Tokens live in the vault; the connector hands out valid access tokens and refreshes them automatically.",
+  "kind": "connector",
+  "icon": "🔑",
+  "requires": ["vault"],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── Google OAuth (package: google) ──",
+    "# Create an OAuth client in Google Cloud Console (OAuth consent +",
+    "# 'Desktop app' credentials). Add the Gmail/Calendar scopes you need.",
+    "GOOGLE_CLIENT_ID=",
+    "GOOGLE_CLIENT_SECRET=",
+    "# Where Google redirects after consent. For local testing use the",
+    "# platform's published port; it must exactly match the redirect URI",
+    "# registered in the OAuth client.",
+    "GOOGLE_REDIRECT_URI=http://127.0.0.1:{{PORT_PLATFORM}}/api/google/auth/callback"
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 018_google.sql, hot-loads the app).",
+    "Set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env (Google Cloud Console -> APIs & Services -> Credentials).",
+    "Connect an account: GET /api/google/auth/start?email=you@gmail.com&scopes=gmail,calendar — open the returned URL, approve, and the callback stores the tokens in the vault.",
+    "A 30-minute job keeps access tokens fresh; connectors.google.google_request() also refreshes lazily on 401."
+  ]
+}

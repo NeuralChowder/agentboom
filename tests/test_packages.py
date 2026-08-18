@@ -132,6 +132,29 @@ class ConnectorPackageTests(AgentTestCase):
         self.assertTrue(result["ok"], result["checks"])
 
 
+class GooglePackageTests(AgentTestCase):
+    def test_google_requires_vault(self):
+        with self.assertRaises(packages_cmd.PackageError) as ctx:
+            packages_cmd.run_add_package(_pkg_args("google", self.agent_dir))
+        self.assertIn("requires: vault", str(ctx.exception))
+
+    def test_vault_then_google_installs_and_validates(self):
+        from agentboom.commands import validate as validate_cmd
+        packages_cmd.run_add_package(_pkg_args("vault", self.agent_dir))
+        result = packages_cmd.run_add_package(_pkg_args("google", self.agent_dir))
+        self.assertTrue(result["ok"])
+        base = self.agent_dir / "platform"
+        self.assertTrue((base / "connectors/google/__init__.py").is_file())
+        self.assertTrue((base / "miniapps/google/main.py").is_file())
+        self.assertTrue((base / "migrations/018_google.sql").is_file())
+        # the OAuth redirect env line is rendered with the agent's port
+        env = (self.agent_dir / ".env.example").read_text()
+        self.assertIn("GOOGLE_REDIRECT_URI=", env)
+        self.assertNotIn("{{PORT_PLATFORM}}", env)
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+
 class EmailStackTests(AgentTestCase):
     """The email trio: vault <- email <- email-actions / email-search."""
 
