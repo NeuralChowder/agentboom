@@ -1,0 +1,12 @@
+{
+  "name": "email-sync",
+  "description": "Collects mail from every mailbox into the cache, applies ignore-filters with receipts, publishes email.received.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "sync", "type": "http", "target": "sync",
+     "cron": "*/5 * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": null
+}

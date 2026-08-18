@@ -1,0 +1,9 @@
+{
+  "name": "email-accounts",
+  "description": "Mailboxes the agent reads and sends from — add, test, rename, remove (passwords in the vault).",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": [],
+  "ui": null
+}

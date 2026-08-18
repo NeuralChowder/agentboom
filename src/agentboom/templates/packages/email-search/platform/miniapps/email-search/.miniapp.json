@@ -1,0 +1,9 @@
+{
+  "name": "email-search",
+  "description": "Search the mail cache, or ask questions about it in plain language.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": [],
+  "ui": null
+}

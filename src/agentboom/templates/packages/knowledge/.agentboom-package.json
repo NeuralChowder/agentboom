@@ -1,0 +1,14 @@
+{
+  "name": "knowledge",
+  "description": "The agent's durable memory: notes with tags + full-text-ish search, over HTTP. Store facts on sight, retrieve them instead of re-asking.",
+  "kind": "addon",
+  "icon": "🧠",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 007_knowledge.sql, hot-loads the app).",
+    "Store a note: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/knowledge/notes -H 'Content-Type: application/json' -d '{\"title\": \"...\", \"body\": \"...\", \"tags\": [\"home\"]}'",
+    "Search: curl -s 'http://127.0.0.1:{{PORT_PLATFORM}}/api/knowledge/notes?q=...'"
+  ]
+}

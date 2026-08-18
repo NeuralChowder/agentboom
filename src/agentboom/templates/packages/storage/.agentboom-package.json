@@ -1,0 +1,16 @@
+{
+  "name": "storage",
+  "description": "A file store on the data volume: upload, list, download, delete — for artifacts, exports, and attachments that must survive restarts.",
+  "kind": "addon",
+  "icon": "📁",
+  "requires": [],
+  "requirements": [
+    "python-multipart>=0.0.9"
+  ],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (installs python-multipart, hot-loads the app).",
+    "Upload: curl -s -X POST -F 'file=@report.pdf' http://127.0.0.1:{{PORT_PLATFORM}}/api/storage/files",
+    "Files live on the data volume (storage/) and survive restarts; the endpoint is loopback-only like the rest of the platform."
+  ]
+}

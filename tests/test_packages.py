@@ -127,6 +127,38 @@ class ConnectorPackageTests(AgentTestCase):
         self.assertTrue(result["ok"], result["checks"])
 
 
+class EmailStackTests(AgentTestCase):
+    """The email trio: vault <- email <- email-actions / email-search."""
+
+    def test_email_refuses_without_vault(self):
+        with self.assertRaises(packages_cmd.PackageError) as ctx:
+            packages_cmd.run_add_package(_pkg_args("email", self.agent_dir))
+        self.assertIn("requires: vault", str(ctx.exception))
+
+    def test_email_actions_refuses_without_email(self):
+        packages_cmd.run_add_package(_pkg_args("vault", self.agent_dir))
+        with self.assertRaises(packages_cmd.PackageError) as ctx:
+            packages_cmd.run_add_package(
+                _pkg_args("email-actions", self.agent_dir))
+        self.assertIn("requires: email", str(ctx.exception))
+
+    def test_full_chain_installs_and_validates(self):
+        from agentboom.commands import validate as validate_cmd
+        for name in ("vault", "email", "email-actions", "email-search"):
+            packages_cmd.run_add_package(_pkg_args(name, self.agent_dir))
+        base = self.agent_dir / "platform"
+        self.assertTrue((base / "connectors/email/__init__.py").is_file())
+        self.assertTrue((base / "migrations/005_email.sql").is_file())
+        self.assertTrue((base / "migrations/006_email_actions.sql").is_file())
+        self.assertTrue((base / "miniapps/email-sync/main.py").is_file())
+        self.assertTrue((base / "miniapps/email-actions/main.py").is_file())
+        self.assertTrue((base / "miniapps/email-search/main.py").is_file())
+        self.assertTrue(
+            (self.agent_dir / ".qwen-docker/skills/email-manager/SKILL.md").is_file())
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

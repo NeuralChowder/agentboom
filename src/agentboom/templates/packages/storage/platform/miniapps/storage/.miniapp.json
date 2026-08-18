@@ -1,0 +1,9 @@
+{
+  "name": "storage",
+  "description": "Durable file store on the data volume — upload, list, download, delete.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": [],
+  "ui": null
+}

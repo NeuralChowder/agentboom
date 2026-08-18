@@ -1,0 +1,9 @@
+{
+  "name": "knowledge",
+  "description": "Durable notes with tags and search — the agent's long-term memory over HTTP.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": [],
+  "ui": null
+}

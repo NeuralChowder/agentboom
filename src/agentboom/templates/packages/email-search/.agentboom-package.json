@@ -1,0 +1,14 @@
+{
+  "name": "email-search",
+  "description": "Search and ask questions over the cached mail — deterministic keyword search plus an LLM \"ask your mail\" endpoint.",
+  "kind": "addon",
+  "icon": "🔎",
+  "requires": ["email"],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "The platform hot-loads the mini-app within ~2s (no migration — it reads the email cache).",
+    "Search: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/email-search/search -H 'Content-Type: application/json' -d '{\"text\": \"invoice\"}'",
+    "Ask in plain language (needs the LLM gateway): POST /api/email-search/ask {\"question\": \"...\"}"
+  ]
+}

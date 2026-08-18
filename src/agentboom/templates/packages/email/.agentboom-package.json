@@ -1,0 +1,21 @@
+{
+  "name": "email",
+  "description": "Email foundation: IMAP/SMTP connector, mailbox manager, and the sync engine that caches incoming mail and publishes email.received events.",
+  "kind": "connector",
+  "icon": "📧",
+  "requires": ["vault"],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── Email (package: email) ──",
+    "# Where the platform reaches its own vault (default is correct in-container).",
+    "# PLATFORM_INTERNAL_URL=http://127.0.0.1:8000"
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 005_email.sql, hot-loads the apps).",
+    "Mailbox passwords live in the vault (the email package requires it).",
+    "Add a mailbox: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/email-accounts/accounts -H 'Content-Type: application/json' -d '{\"email\": \"you@example.com\", \"label\": \"personal\", \"provider\": \"gmail\", \"password\": \"the app password\"}'",
+    "Gmail/Google Workspace need an APP password (Google Account -> Security -> 2-Step Verification -> App passwords).",
+    "Sync polls every 5 minutes and publishes email.received — install the email-actions / email-search packages to build on it."
+  ]
+}

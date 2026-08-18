@@ -1,0 +1,12 @@
+{
+  "name": "email-actions",
+  "description": "The needs-attention queue: triages incoming mail and offers one-click reply drafts.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "triage", "type": "http", "target": "triage",
+     "cron": "*/5 * * * *", "enabled": true}
+  ],
+  "subscribes": ["email.received"],
+  "ui": null
+}

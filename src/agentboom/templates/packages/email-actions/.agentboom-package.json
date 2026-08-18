@@ -1,0 +1,15 @@
+{
+  "name": "email-actions",
+  "description": "\"Needs attention\": turns incoming mail into a short queue of one-click decisions with ready-to-send reply drafts.",
+  "kind": "addon",
+  "icon": "🎯",
+  "requires": ["email"],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 006_email_actions.sql, hot-loads the app).",
+    "Triage uses the LLM gateway (LLM_BASE_URL / LLM_API_KEY in .env) — without it, messages still queue for manual review with no drafts.",
+    "Queue: curl -s http://127.0.0.1:{{PORT_PLATFORM}}/api/email-actions/queue",
+    "Replies are sent through the mailbox's own SMTP and always require an explicit execute call."
+  ]
+}
