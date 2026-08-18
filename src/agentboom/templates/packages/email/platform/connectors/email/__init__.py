@@ -169,6 +169,11 @@ def _parse(uid: str, raw: bytes, folder: str) -> dict:
             msg.get("Date") or "").astimezone().strftime("%Y-%m-%d %H:%M:%S")
             if msg.get("Date") else None,
         "has_attachment": 1 if _has_attachment(msg) else 0,
+        # Threading metadata (RFC 5322). IMAP has no provider-level thread
+        # notion, so these headers are the generic basis for grouping a
+        # conversation. Empty when the message starts its own thread.
+        "in_reply_to": _decode(msg.get("In-Reply-To")),
+        "references": _decode(msg.get("References"))[:1000],
         "body_text": _body_text(msg),
     }
 

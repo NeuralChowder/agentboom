@@ -97,11 +97,14 @@ async def sync_now():
             inserted = await db.execute(
                 "INSERT INTO emails "
                 "(account_id, folder, uid, message_id, from_email, from_name, "
-                " subject, received_at, has_attachment, body_text) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+                " subject, received_at, has_attachment, in_reply_to, thread_refs, "
+                " body_text) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT DO NOTHING",
                 (account["id"], msg["folder"], msg["uid"], msg["message_id"],
                  msg["from_email"], msg["from_name"], msg["subject"],
-                 msg["received_at"], msg["has_attachment"], msg["body_text"]))
+                 msg["received_at"], msg["has_attachment"],
+                 msg["in_reply_to"], msg["references"], msg["body_text"]))
             if inserted:
                 row = await db.fetchone(
                     "SELECT id FROM emails WHERE account_id = ? AND folder = ? "

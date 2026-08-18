@@ -25,6 +25,7 @@ Endpoints (mounted at /api/email-actions/):
 """
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -92,10 +93,11 @@ async def queue(limit: int = 25):
     rows = await db.fetchall(
         """
         SELECT i.id, i.email_id, i.account_email, i.reason, i.urgency,
-               i.triaged_at, e.subject, e.from_name, e.from_email,
-               e.received_at, e.has_attachment
+               i.triaged_at, i.snoozed_until, e.subject, e.from_name,
+               e.from_email, e.received_at, e.has_attachment
         FROM attention_items i JOIN emails e ON e.id = i.email_id
         WHERE i.status = 'triaged' AND i.needs_attention = 1
+          AND (i.snoozed_until IS NULL OR i.snoozed_until <= CURRENT_TIMESTAMP)
         ORDER BY i.urgency DESC, e.received_at DESC
         LIMIT ?
         """, limit)
@@ -291,6 +293,80 @@ async def skip_item(item_id: int):
     if not updated:
         return JSONResponse({"error": "no such open item"}, status_code=404)
     return {"ok": True}
+
+
+# ── snooze — the fourth outcome: important, not now ───────────────
+
+
+def _snooze_target(payload: dict) -> datetime:
+    """Resolve when a snoozed item should return.
+
+    Accepts an explicit ISO `until`, or a convenience `preset`:
+    tonight / tomorrow-morning / in-3-days / next-monday.
+    """
+    until = (payload.get("until") or "").strip()
+    if until:
+        dt = datetime.fromisoformat(until.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    preset = (payload.get("preset") or "").strip().lower()
+    if preset == "tonight":
+        target = now.replace(hour=20, minute=0, second=0, microsecond=0)
+        if target <= now:
+            target += timedelta(days=1)
+        return target
+    if preset == "tomorrow-morning":
+        return (now + timedelta(days=1)).replace(
+            hour=9, minute=0, second=0, microsecond=0)
+    if preset == "in-3-days":
+        return now + timedelta(days=3)
+    if preset == "next-monday":
+        days_ahead = (7 - now.weekday()) % 7 or 7
+        return (now + timedelta(days=days_ahead)).replace(
+            hour=9, minute=0, second=0, microsecond=0)
+    raise ValueError("give 'until' (ISO) or a preset: tonight, "
+                     "tomorrow-morning, in-3-days, next-monday")
+
+
+@router.post("/items/{item_id}/snooze")
+async def snooze_item(item_id: int, payload: dict):
+    try:
+        target = _snooze_target(payload)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    row = await db.fetchone("SELECT * FROM attention_items WHERE id = ?", item_id)
+    if not row or row["status"] not in ("pending", "triaged"):
+        return JSONResponse({"error": "no such open item"}, status_code=404)
+    await db.execute(
+        "UPDATE attention_items SET snoozed_until = ? WHERE id = ?",
+        (target.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), item_id))
+    return {"ok": True, "snoozed_until": target.isoformat()}
+
+
+@router.post("/items/{item_id}/wake")
+async def wake_item(item_id: int):
+    updated = await db.execute(
+        "UPDATE attention_items SET snoozed_until = NULL WHERE id = ?", item_id)
+    if not updated:
+        return JSONResponse({"error": "no such item"}, status_code=404)
+    return {"ok": True}
+
+
+@router.get("/snoozed")
+async def snoozed(limit: int = 50):
+    limit = max(1, min(int(limit), 200))
+    rows = await db.fetchall(
+        """
+        SELECT i.id, i.email_id, i.account_email, i.reason, i.urgency,
+               i.snoozed_until, e.subject, e.from_name, e.from_email
+        FROM attention_items i JOIN emails e ON e.id = i.email_id
+        WHERE i.status IN ('pending', 'triaged')
+          AND i.snoozed_until IS NOT NULL AND i.snoozed_until > CURRENT_TIMESTAMP
+        ORDER BY i.snoozed_until
+        LIMIT ?
+        """, limit)
+    return {"snoozed": rows}
 
 
 @router.get("/stats")
