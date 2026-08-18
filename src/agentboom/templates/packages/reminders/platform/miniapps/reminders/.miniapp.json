@@ -1,0 +1,13 @@
+{
+  "name": "reminders",
+  "description": "Due-date reminders with recurrence; pushed via ntfy when present.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [
+    {"name": "check-due", "type": "http", "target": "check-due",
+     "cron": "* * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": null
+}

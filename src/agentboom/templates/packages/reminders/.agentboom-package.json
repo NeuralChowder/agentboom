@@ -1,0 +1,14 @@
+{
+  "name": "reminders",
+  "description": "Due-date reminders with optional recurrence. Delivered to your phone via the ntfy package when it's installed; otherwise they queue in the app.",
+  "kind": "addon",
+  "icon": "⏰",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 015_reminders.sql, hot-loads the app).",
+    "Add a reminder: POST /api/reminders/reminders with {\"text\": \"...\", \"due_at\": \"YYYY-MM-DD HH:MM\"} (optionally \"recurrence\": \"daily\"|\"weekly\").",
+    "Install the ntfy package to get reminders pushed to your phone; without it they are still tracked and listed."
+  ]
+}

@@ -244,6 +244,144 @@ class MigrationDialectTests(unittest.TestCase):
         self.assertEqual(selected["002_plain.sql"].name, "002_plain.sql")
 
 
+class FrameworkPackagesTests(AgentTestCase):
+    """email-templates / contacts / brain / reminders: install, requires
+    chains, and the capability manifest wiring."""
+
+    def test_email_templates_requires_email(self):
+        with self.assertRaises(packages_cmd.PackageError) as ctx:
+            packages_cmd.run_add_package(
+                _pkg_args("email-templates", self.agent_dir))
+        self.assertIn("requires: email", str(ctx.exception))
+
+    def test_email_templates_full_chain_installs_and_validates(self):
+        from agentboom.commands import validate as validate_cmd
+        for name in ("vault", "email", "email-templates"):
+            packages_cmd.run_add_package(_pkg_args(name, self.agent_dir))
+        base = self.agent_dir / "platform"
+        self.assertTrue((base / "migrations/012_email_templates.sql").is_file())
+        self.assertTrue(
+            (base / "miniapps/email-templates/main.py").is_file())
+        # the template engine ships with the email connector
+        self.assertTrue(
+            (base / "connectors/email/templates.py").is_file())
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+    def test_brain_requires_contacts(self):
+        with self.assertRaises(packages_cmd.PackageError) as ctx:
+            packages_cmd.run_add_package(_pkg_args("brain", self.agent_dir))
+        self.assertIn("requires: contacts", str(ctx.exception))
+
+    def test_contacts_brain_reminders_install_and_validate(self):
+        from agentboom.commands import validate as validate_cmd
+        for name in ("contacts", "brain", "reminders"):
+            packages_cmd.run_add_package(_pkg_args(name, self.agent_dir))
+        base = self.agent_dir / "platform"
+        for mig in ("013_contacts.sql", "014_brain.sql", "015_reminders.sql"):
+            self.assertTrue((base / "migrations" / mig).is_file())
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+    def test_capability_manifests_are_wired(self):
+        """contacts PROVIDES contacts.lookup; brain USES it — the gateway
+        resolves this at load. Assert the manifests carry the contract."""
+        import json as _json
+        from agentboom import registries as registries_mod
+        root = registries_mod.packages_root()
+        contacts_manifest = _json.loads(
+            (root / "contacts/platform/miniapps/contacts/.miniapp.json").read_text())
+        brain_manifest = _json.loads(
+            (root / "brain/platform/miniapps/brain/.miniapp.json").read_text())
+        provided = {p["name"] for p in contacts_manifest.get("provides", [])}
+        self.assertIn("contacts.lookup", provided)
+        self.assertIn("contacts.lookup", brain_manifest.get("uses", []))
+
+    def test_email_templates_manifest_provides_render(self):
+        import json as _json
+        from agentboom import registries as registries_mod
+        root = registries_mod.packages_root()
+        manifest = _json.loads(
+            (root / "email-templates/platform/miniapps/email-templates/"
+                    ".miniapp.json").read_text())
+        provided = {p["name"] for p in manifest.get("provides", [])}
+        self.assertIn("email.render", provided)
+
+
+class EmailTemplateEngineTests(unittest.TestCase):
+    """The template engine is pure logic + graceful db fallback — unit-test
+    it standalone (loaded from the template source)."""
+
+    def _engine(self):
+        import importlib.util
+        import sys
+        from agentboom import registries as registries_mod
+        path = (registries_mod.packages_root()
+                / "email/platform/connectors/email/templates.py")
+        # Never write bytecode into the template tree.
+        old = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
+        try:
+            spec = importlib.util.spec_from_file_location(
+                "email_templates_under_test", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        finally:
+            sys.dont_write_bytecode = old
+        return module
+
+    def test_text_to_html_escapes_and_paragraphs(self):
+        engine = self._engine()
+        html = engine.text_to_html("a < b\n\nsecond")
+        self.assertIn("a &lt; b", html)
+        self.assertEqual(html.count("<p"), 2)
+
+    def test_wrap_injects_body_and_footer(self):
+        engine = self._engine()
+        out = engine.wrap("<p>hi</p>", "<div>{{body}}</div><small>{{footer}}</small>",
+                          footer="FOOT")
+        self.assertIn("<p>hi</p>", out)
+        self.assertIn("FOOT", out)
+        self.assertNotIn("{{body}}", out)
+
+    def test_render_degrades_to_default_when_tables_absent(self):
+        import asyncio
+        import types
+        engine = self._engine()
+
+        async def boom(*_a, **_k):
+            raise RuntimeError("no such table: email_template_active")
+
+        engine.db = types.SimpleNamespace(fetchone=boom)
+        html = asyncio.run(engine.render("hello", "someone@example.com"))
+        self.assertIn("hello", html)
+        self.assertIn("background-color", html)  # the default card markup
+
+    def test_render_uses_active_template_when_present(self):
+        import asyncio
+        import types
+        engine = self._engine()
+        custom = "<div id='xmas'>{{body}}<i>{{footer}}</i></div>"
+
+        async def hit(*_a, **_k):
+            return {"html": custom}
+
+        engine.db = types.SimpleNamespace(fetchone=hit)
+        html = asyncio.run(engine.render("season's greetings", "a@b.c"))
+        self.assertIn("id='xmas'", html)
+        # text bodies are HTML-escaped before wrapping
+        self.assertIn("season&#x27;s greetings", html)
+
+    def test_disable_env_sends_bare_html(self):
+        import asyncio
+        import types
+        engine = self._engine()
+        engine.DISABLED = True
+        engine.db = types.SimpleNamespace()  # should never be consulted
+        html = asyncio.run(engine.render("body", "a@b.c", html="<b>raw</b>"))
+        self.assertEqual(html, "<b>raw</b>")
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

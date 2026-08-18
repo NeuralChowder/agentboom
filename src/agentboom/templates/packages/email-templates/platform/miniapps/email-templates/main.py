@@ -34,7 +34,9 @@ from agentboom_sdk import db
 from agentboom_sdk.llm import complete
 from connectors.email.templates import (
     DEFAULT_FOOTER,
+    DEFAULT_NAME,
     DEFAULT_TEMPLATE,
+    ensure_default_seeded,
     render,
     text_to_html,
     wrap,
@@ -83,6 +85,18 @@ def _validate_html(html: str) -> None:
             "template must contain a {{body}} placeholder where the message goes")
 
 
+async def _unique_name(base: str, scope) -> str:
+    """A name not yet used within this scope (shared/per-mailbox)."""
+    name = base
+    n = 1
+    while await db.fetchone(
+            "SELECT id FROM email_templates WHERE name = ? AND "
+            "COALESCE(scope_email, '*') = COALESCE(?, '*')", (name, scope)):
+        n += 1
+        name = f"{base}-{n}"
+    return name
+
+
 # ── library ──────────────────────────────────────────────────────────
 
 
@@ -101,6 +115,7 @@ async def default_template():
 
 @router.get("/templates")
 async def list_templates():
+    await ensure_default_seeded()
     rows = await db.fetchall("SELECT * FROM email_templates ORDER BY name")
     active = await _active_map()
     used_by = {}
@@ -125,16 +140,24 @@ async def create_template(payload: dict):
         _validate_html(html)
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
-    if await db.fetchone("SELECT id FROM email_templates WHERE name = ?", name):
-        return JSONResponse({"error": "template exists"}, status_code=409)
     scope = _norm(payload.get("scope_email")) or None
+    # Names are unique per scope (a personal and a shared template may share
+    # a name); the scoped unique index enforces it, pre-check for a message.
+    dup = await db.fetchone(
+        "SELECT id FROM email_templates WHERE name = ? AND "
+        "COALESCE(scope_email, '*') = COALESCE(?, '*')", (name, scope))
+    if dup:
+        return JSONResponse({"error": "a template with this name exists in this scope"},
+                            status_code=409)
     await db.execute(
         "INSERT INTO email_templates (name, scope_email, html, description, season, created_by) "
         "VALUES (?, ?, ?, ?, ?, ?)",
         (name, scope, html, (payload.get("description") or "").strip() or None,
          (payload.get("season") or "").strip() or None,
          payload.get("created_by") or "user"))
-    row = await db.fetchone("SELECT * FROM email_templates WHERE name = ?", name)
+    row = await db.fetchone(
+        "SELECT * FROM email_templates WHERE name = ? AND COALESCE(scope_email, '*') = COALESCE(?, '*')",
+        (name, scope))
     log.info("email-templates: created '%s'", name)
     return {"ok": True, "template": dict(row)}
 
@@ -163,9 +186,16 @@ async def update_template(template_id: int, payload: dict):
 
 @router.delete("/templates/{template_id}")
 async def delete_template(template_id: int):
-    removed = await db.execute("DELETE FROM email_templates WHERE id = ?", template_id)
-    if not removed:
+    row = await db.fetchone("SELECT * FROM email_templates WHERE id = ?", template_id)
+    if not row:
         return JSONResponse({"error": "no such template"}, status_code=404)
+    if row.get("is_fallback"):
+        # The default is never deletable — re-seed it defensively and refuse.
+        await ensure_default_seeded()
+        return JSONResponse(
+            {"error": "the built-in default cannot be deleted; edit it instead"},
+            status_code=400)
+    await db.execute("DELETE FROM email_templates WHERE id = ?", template_id)
     return {"deleted": True,
             "note": "mailboxes using it went back to the built-in default"}
 
@@ -175,10 +205,11 @@ async def delete_template(template_id: int):
 
 @router.get("/mailboxes")
 async def list_mailboxes():
+    await ensure_default_seeded()
     mailboxes = await _mailboxes()
     active = await _active_map()
     return {"mailboxes": [
-        {**m, "template": active.get(m["email"], "(built-in default)")}
+        {**m, "template": active.get(m["email"], DEFAULT_NAME)}
         for m in mailboxes
     ]}
 
@@ -221,7 +252,8 @@ async def deactivate(payload: dict):
     if not account:
         return JSONResponse({"error": "account_email is required"}, status_code=400)
     await db.execute("DELETE FROM email_template_active WHERE account_email = ?", account)
-    return {"ok": True, "account_email": account, "template": "(built-in default)"}
+    await ensure_default_seeded()
+    return {"ok": True, "account_email": account, "template": DEFAULT_NAME}
 
 
 # ── preview + render ─────────────────────────────────────────────────
@@ -237,6 +269,7 @@ async def preview_template(id: int):
 
 @router.get("/preview-active", response_class=HTMLResponse)
 async def preview_active(account: str):
+    await ensure_default_seeded()
     html = await render("This is a sample message.", _norm(account))
     return html
 
@@ -248,6 +281,7 @@ async def render_message(payload: dict):
     body = payload.get("body") or ""
     if not body and not payload.get("html"):
         return JSONResponse({"error": "body (or html) is required"}, status_code=400)
+    await ensure_default_seeded()
     html = await render(body, account, payload.get("html"))
     return {"ok": True, "account_email": account, "html": html}
 
@@ -291,17 +325,15 @@ async def generate_template(payload: dict):
         return JSONResponse({"error": str(exc)[:300]}, status_code=503)
     # Save inactive: nothing changes until it is previewed and activated.
     base = (instructions.split(".")[0][:40] or "template").strip().lower().replace(" ", "-")
-    name = base
-    n = 1
-    while await db.fetchone("SELECT id FROM email_templates WHERE name = ?", name):
-        n += 1
-        name = f"{base}-{n}"
     scope = _norm(payload.get("scope_email")) or None
+    name = await _unique_name(base, scope)
     await db.execute(
         "INSERT INTO email_templates (name, scope_email, html, description, created_by) "
         "VALUES (?, ?, ?, ?, 'agent')",
         (name, scope, html, instructions[:300]))
-    row = await db.fetchone("SELECT * FROM email_templates WHERE name = ?", name)
+    row = await db.fetchone(
+        "SELECT * FROM email_templates WHERE name = ? AND "
+        "COALESCE(scope_email, '*') = COALESCE(?, '*')", (name, scope))
     return {"ok": True, "template": dict(row),
             "note": "saved inactive — preview it, then activate it on a mailbox"}
 
@@ -324,16 +356,15 @@ async def redraft_template(template_id: int, payload: dict):
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": str(exc)[:300]}, status_code=503)
     # Keep the original untouched; save the rewrite as a new variant.
-    name = f"{row['name']}-v2"
-    n = 2
-    while await db.fetchone("SELECT id FROM email_templates WHERE name = ?", name):
-        n += 1
-        name = f"{row['name']}-v{n}"
+    name = await _unique_name(f"{row['name']}-v2", row["scope_email"])
     await db.execute(
         "INSERT INTO email_templates (name, scope_email, html, description, created_by) "
         "VALUES (?, ?, ?, ?, 'agent')",
         (name, row["scope_email"], html, f"redraft of {row['name']}: {instructions[:200]}"))
-    new_row = await db.fetchone("SELECT * FROM email_templates WHERE name = ?", name)
+    new_row = await db.fetchone(
+        "SELECT * FROM email_templates WHERE name = ? AND "
+        "COALESCE(scope_email, '*') = COALESCE(?, '*')",
+        (name, row["scope_email"]))
     return {"ok": True, "template": dict(new_row),
             "summary": f"created '{name}' from '{row['name']}'"}
 

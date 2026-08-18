@@ -37,6 +37,9 @@ DEFAULT_FOOTER = os.environ.get(
 # Set EMAIL_TEMPLATE_DISABLE=1 to send bare HTML with no wrapper at all.
 DISABLED = os.environ.get("EMAIL_TEMPLATE_DISABLE", "").lower() in ("1", "true", "yes")
 
+# Name of the seeded built-in default row (shared, is_fallback=1).
+DEFAULT_NAME = "(built-in default)"
+
 # Built-in default: a white card for the message on a soft background,
 # with a small muted footer. Inline CSS only (email-safe).
 DEFAULT_TEMPLATE = """<!DOCTYPE html>
@@ -75,12 +78,36 @@ def wrap(body_html: str, template_html: str, footer: Optional[str] = None) -> st
     return out
 
 
+async def ensure_default_seeded() -> None:
+    """Seed the built-in default as a shared, editable template row.
+
+    Making the default a first-class row (flagged is_fallback) means it
+    shows up in the library, previews like any other, and can be reworded
+    by hand or by the agent. Deleting it is refused by the mini-app, which
+    re-seeds it. Safe to call repeatedly (idempotent) and degrades to a
+    no-op when the tables are absent.
+    """
+    try:
+        await db.execute(
+            "INSERT INTO email_templates (name, scope_email, html, description, "
+            "is_fallback, created_by) "
+            "SELECT ?, NULL, ?, ?, 1, 'system' WHERE NOT EXISTS "
+            "(SELECT 1 FROM email_templates WHERE is_fallback = 1)",
+            (DEFAULT_NAME, DEFAULT_TEMPLATE, "Built-in default wrapper"))
+    except Exception:  # noqa: BLE001 — tables absent / already seeded
+        pass
+
+
 async def active_template_html(account_email: str) -> str:
     """The template a mailbox sends with right now.
 
-    Resolution: the mailbox's activated template -> the built-in default.
-    Degrades to the default when the email-tables are absent (the
-    email-templates package not installed) or the lookup fails.
+    Resolution order:
+      1. the mailbox's activated template;
+      2. the seeded default row (is_fallback = 1), so an edited default
+         is honoured;
+      3. the code constant — absolute last resort if the row is missing.
+    Degrades to the code default when the tables are absent (the
+    email-templates package not installed) or any lookup fails.
     """
     if not account_email:
         return DEFAULT_TEMPLATE
@@ -92,6 +119,10 @@ async def active_template_html(account_email: str) -> str:
             (account_email.strip().lower(),))
         if row and row.get("html"):
             return row["html"]
+        fallback = await db.fetchone(
+            "SELECT html FROM email_templates WHERE is_fallback = 1 LIMIT 1")
+        if fallback and fallback.get("html"):
+            return fallback["html"]
     except Exception:  # noqa: BLE001 — tables absent / lookup failed -> default
         pass
     return DEFAULT_TEMPLATE
