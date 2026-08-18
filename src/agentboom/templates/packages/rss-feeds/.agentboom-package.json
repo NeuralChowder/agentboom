@@ -1,0 +1,17 @@
+{
+  "name": "rss-feeds",
+  "description": "Watch RSS/Atom feeds: feeds mini-app with a 30-min poll job + rss connector. New items become events mini-apps can subscribe to.",
+  "kind": "connector",
+  "icon": "📰",
+  "requires": [],
+  "requirements": [
+    "feedparser>=6.0.11"
+  ],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 003_feeds.sql, installs feedparser, hot-loads the app).",
+    "Add a feed: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/feeds/feeds -H 'Content-Type: application/json' -d '{\"url\": \"https://example.com/feed.xml\"}'",
+    "Polling runs every 30 minutes (manifest job); new items publish the feeds.new_items event.",
+    "Mini-apps can subscribe to feeds.new_items in their manifest, or import connectors.rss directly."
+  ]
+}

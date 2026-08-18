@@ -1,0 +1,9 @@
+{
+  "name": "weather",
+  "description": "Weather by place name (Open-Meteo): current conditions + daily forecast, no API key.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": [],
+  "ui": null
+}

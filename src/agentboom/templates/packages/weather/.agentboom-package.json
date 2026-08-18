@@ -1,0 +1,13 @@
+{
+  "name": "weather",
+  "description": "Weather by place name — Open-Meteo connector + mini-app. Zero API keys, zero configuration.",
+  "kind": "connector",
+  "icon": "🌤️",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "No setup needed — the platform hot-loads the mini-app within ~2s.",
+    "Try it: curl -s 'http://127.0.0.1:{{PORT_PLATFORM}}/api/weather/current?place=Lisbon'"
+  ]
+}

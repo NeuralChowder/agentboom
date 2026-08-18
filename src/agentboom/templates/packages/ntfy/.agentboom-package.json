@@ -1,0 +1,25 @@
+{
+  "name": "ntfy",
+  "description": "Push notifications to your phone via ntfy — connector library + agent skill. No account, one topic name.",
+  "kind": "connector",
+  "icon": "📣",
+  "requires": [],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── ntfy push notifications (package: ntfy) ──",
+    "# Topic = the channel. Pick something UNGUESSABLE: anyone who knows",
+    "# the topic name can read and post to it. e.g. alert-marek-8f3a1c.",
+    "NTFY_TOPIC=",
+    "# Self-hosted server? Change this. Public default needs no setup.",
+    "# NTFY_BASE_URL=https://ntfy.sh",
+    "# Only for protected topics on private servers:",
+    "# NTFY_TOKEN="
+  ],
+  "post_install": [
+    "Pick a topic name (unguessable!) and set NTFY_TOPIC in .env.",
+    "Install the ntfy app on your phone and subscribe to the SAME topic.",
+    "Restart the platform: docker compose restart endpoint-platform.",
+    "Test: curl -d 'agentboom says hi' https://ntfy.sh/<your-topic>"
+  ]
+}

@@ -24,7 +24,8 @@ If a capability already exists, consume or extend it — never duplicate.
   It may also export `async def handle_event(event)` for subscriptions.
 - `.miniapp.json` manifest: `name`, `description`, `version`, `status`,
   `jobs[]`, `subscribes[]`, `ui`.
-- Import **only** from `agentboom_sdk.` — never other mini-apps, never the gateway.
+- Import **only** from `agentboom_sdk.` and `connectors.*` (installed by
+  connector packages) — never other mini-apps, never the gateway.
 
 ### Jobs (scheduling)
 

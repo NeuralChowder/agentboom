@@ -1,0 +1,22 @@
+{
+  "name": "github-watch",
+  "description": "Watch GitHub repos for new issues and releases — github connector + watcher mini-app with a 15-min check job and github.new_event events.",
+  "kind": "connector",
+  "icon": "🐙",
+  "requires": [],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── GitHub watching (package: github-watch) ──",
+    "# Optional but strongly recommended: without a token you get 60",
+    "# requests/hour per repo. Use a fine-grained token, Contents+Issues",
+    "# read-only. Leave empty only for very light public-repo watching.",
+    "GITHUB_TOKEN="
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 004_github_watch.sql, hot-loads the app).",
+    "Watch a repo: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/github-watch/repos -H 'Content-Type: application/json' -d '{\"repo\": \"NeuralChowder/agentboom\"}'",
+    "Checks run every 15 minutes (manifest job); new issues/releases publish github.new_event.",
+    "Set GITHUB_TOKEN in .env for anything beyond casual use (60 req/h unauthenticated)."
+  ]
+}

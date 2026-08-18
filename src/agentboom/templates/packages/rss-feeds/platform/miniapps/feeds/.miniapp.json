@@ -1,0 +1,12 @@
+{
+  "name": "feeds",
+  "description": "RSS/Atom watching: add feeds, poll every 30 min, new items publish feeds.new_items.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "poll", "type": "http", "target": "poll",
+     "cron": "*/30 * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": null
+}

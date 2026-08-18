@@ -1,0 +1,12 @@
+{
+  "name": "github-watch",
+  "description": "Watch GitHub repos for new issues/releases; publishes github.new_event.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "check", "type": "http", "target": "check",
+     "cron": "*/15 * * * *", "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": null
+}

@@ -11,9 +11,9 @@ Responsibilities:
 - expose capability discovery (/api/catalog, /api/agent/brief) and ops
   endpoints (/health, /admin/*)
 
-Mini-apps import only from `agentboom_sdk` — never from this module, and
-never from each other. Cross-app communication goes through HTTP or
-agentboom_sdk.events.
+Mini-apps import only from `agentboom_sdk` and from connector packages
+(`connectors.*`) — never from this module, and never from each other.
+Cross-app communication goes through HTTP or agentboom_sdk.events.
 """
 import asyncio
 import hashlib

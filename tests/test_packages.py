@@ -15,7 +15,14 @@ class PackageDiscoveryTests(AgentTestCase):
     def test_available_packages_listed(self):
         result = packages_cmd.run_packages(argparse.Namespace(dir=None))
         names = {p["name"] for p in result["available"]}
-        self.assertEqual(names, {"telegram", "rich-link", "vault"})
+        # The catalog grows; assert the shipped set is present and every
+        # entry carries the listing fields the website generator relies on.
+        self.assertTrue({"telegram", "rich-link", "vault"} <= names, names)
+        self.assertIn("weather", names)
+        for pkg in result["available"]:
+            self.assertIn("kind", pkg)
+            self.assertIn("source", pkg)
+            self.assertEqual(pkg["source"], "builtin")
 
 
 class RichLinkPackageTests(AgentTestCase):
@@ -76,6 +83,48 @@ class TelegramPackageTests(AgentTestCase):
     def test_unknown_package_raises(self):
         with self.assertRaises(packages_cmd.PackageError):
             packages_cmd.run_add_package(_pkg_args("does-not-exist", self.agent_dir))
+
+
+class ConnectorPackageTests(AgentTestCase):
+    """Connector packages ship importable clients under platform/connectors/."""
+
+    def test_weather_installs_connector_and_miniapp(self):
+        result = packages_cmd.run_add_package(_pkg_args("weather", self.agent_dir))
+        self.assertTrue(result["ok"])
+        self.assertTrue(
+            (self.agent_dir / "platform/connectors/__init__.py").is_file())
+        self.assertTrue(
+            (self.agent_dir / "platform/connectors/weather/__init__.py").is_file())
+        self.assertTrue(
+            (self.agent_dir / "platform/miniapps/weather/main.py").is_file())
+        registry = json.loads((self.agent_dir / ".agentboom.json").read_text())
+        self.assertEqual(registry["packages"]["weather"]["kind"], "connector")
+
+    def test_two_connectors_share_the_connectors_root(self):
+        packages_cmd.run_add_package(_pkg_args("weather", self.agent_dir))
+        packages_cmd.run_add_package(_pkg_args("ntfy", self.agent_dir))
+        self.assertTrue(
+            (self.agent_dir / "platform/connectors/ntfy/__init__.py").is_file())
+        self.assertTrue(
+            (self.agent_dir / "platform/connectors/weather/__init__.py").is_file())
+
+    def test_rss_feeds_ships_migration_and_valid_cron_job(self):
+        packages_cmd.run_add_package(_pkg_args("rss-feeds", self.agent_dir))
+        self.assertTrue(
+            (self.agent_dir / "platform/migrations/003_feeds.sql").is_file())
+        reqs = (self.agent_dir / "platform/requirements.txt").read_text()
+        self.assertIn("feedparser", reqs)
+        # validate parses manifest jobs: the poll job's cron must pass.
+        from agentboom.commands import validate as validate_cmd
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
+
+    def test_installed_connectors_agent_still_validates(self):
+        from agentboom.commands import validate as validate_cmd
+        for name in ("weather", "ntfy", "github-watch"):
+            packages_cmd.run_add_package(_pkg_args(name, self.agent_dir))
+        result = validate_cmd.run(argparse.Namespace(dir=str(self.agent_dir)))
+        self.assertTrue(result["ok"], result["checks"])
 
 
 if __name__ == "__main__":

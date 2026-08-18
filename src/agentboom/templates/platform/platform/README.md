@@ -37,8 +37,9 @@ of saving (2 s filesystem watcher). Check `/api/catalog` and
 
 Rules:
 
-- Mini-apps import **only** from `agentboom_sdk` — never from each other, never
-  from `api_gateway`. Cross-app communication goes over HTTP or `agentboom_sdk.events`.
+- Mini-apps import **only** from `agentboom_sdk` and `connectors.*`
+  (installed by connector packages) — never from each other, never from
+  `api_gateway`. Cross-app communication goes over HTTP or `agentboom_sdk.events`.
 - Keep request handlers fast. Anything long-running: enqueue it, return
   `{"status": "accepted"}`, and do the work in a job or background task.
 - Event names use dot-notation: `alert.created`, `invoice.received`.
