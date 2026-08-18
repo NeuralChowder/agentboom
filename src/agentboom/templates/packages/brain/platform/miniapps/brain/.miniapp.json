@@ -1,0 +1,11 @@
+{
+  "name": "brain",
+  "description": "Lightweight knowledge graph: entities + observations, self-filling from mail, enriched via contacts.lookup.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [],
+  "subscribes": ["email.received"],
+  "uses": ["contacts.lookup"],
+  "ui": null
+}

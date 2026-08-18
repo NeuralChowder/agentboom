@@ -35,6 +35,8 @@ from typing import Dict, List, Optional
 
 import httpx
 
+from . import templates  # noqa: F401 — template engine for the send path
+
 log = logging.getLogger("connectors.email")
 
 PLATFORM_INTERNAL_URL = os.environ.get(
@@ -266,22 +268,34 @@ def _smtp_send(smtp_host: str, smtp_port: int, user: str, password: str,
 
 async def send_mail(smtp_host: str, smtp_port: int, user: str, password: str,
                     to: List[str], subject: str, body: str,
-                    html: Optional[str] = None) -> None:
-    """Send one message. Raises EmailError on any failure."""
+                    html: Optional[str] = None,
+                    account_email: Optional[str] = None) -> None:
+    """Send one message. Raises EmailError on any failure.
+
+    The single send path: the HTML part is automatically wrapped in the
+    mailbox's active template (or the built-in default) via the template
+    engine. The plain-text `body` is always sent untouched. Pass your own
+    `html` for the message body to control the inner markup; the wrapper
+    still applies around it. Set account_email to template against a
+    specific mailbox (defaults to `user`).
+    """
     if not to:
         raise EmailError("send_mail needs at least one recipient")
+    final_html = await templates.render(body, account_email or user, html)
     await asyncio.to_thread(
-        _smtp_send, smtp_host, smtp_port, user, password, to, subject, body, html)
+        _smtp_send, smtp_host, smtp_port, user, password, to, subject, body, final_html)
     log.info("email: sent '%s' to %s via %s", subject[:60], ", ".join(to), smtp_host)
 
 
 async def send_for_account(account: dict, to: List[str], subject: str,
                            body: str, html: Optional[str] = None) -> None:
     """Send using a stored account row (dict with email/smtp_host/smtp_port);
-    the password comes from the vault just-in-time."""
+    the password comes from the vault just-in-time. The message is wrapped
+    in that mailbox's active template automatically."""
     if not account.get("smtp_host"):
         raise EmailError(f"account {account.get('email')} has no SMTP host — "
                          "edit the mailbox to add one")
     password = await vault_password(account["email"])
     await send_mail(account["smtp_host"], account.get("smtp_port") or 587,
-                    account["email"], password, to, subject, body, html)
+                    account["email"], password, to, subject, body, html,
+                    account_email=account["email"])

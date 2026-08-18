@@ -1,0 +1,14 @@
+{
+  "name": "email-templates",
+  "description": "Per-mailbox HTML templates with footer, seasonal picks, and agent-drafted designs; the send path applies them automatically.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [],
+  "subscribes": [],
+  "provides": [
+    {"name": "email.render", "endpoint": "POST /render",
+     "description": "wrap a message body in a mailbox's active email template"}
+  ],
+  "ui": null
+}

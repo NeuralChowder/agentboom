@@ -1,0 +1,14 @@
+{
+  "name": "brain",
+  "description": "A lightweight knowledge graph: people/companies/topics become entities, mail and notes become observations. Enriched by contacts.lookup when the contacts package is present.",
+  "kind": "addon",
+  "icon": "🧠",
+  "requires": ["contacts"],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 014_brain.sql, hot-loads the app).",
+    "Entities grow automatically from incoming mail (with the email package); add entities and observations manually too.",
+    "Uses the contacts.lookup capability — the gateway verifies it is provided at load time (see /api/capabilities)."
+  ]
+}

@@ -176,13 +176,19 @@ class RuntimeTests(unittest.TestCase):
             runtimes.get_runtime("doesnotexist")
 
     def test_qwen_launch_argv(self):
+        import shutil
         from agentboom import runtimes
         spec = runtimes.get_runtime("qwen")
         self.assertTrue(spec.supported)
-        argv = spec.launch_argv("build the thing")
-        self.assertEqual(argv[0], "qwen")
-        self.assertIn("--prompt-interactive", argv)
-        self.assertIn("build the thing", argv)
+        if shutil.which("qwen"):
+            argv = spec.launch_argv("build the thing")
+            self.assertEqual(argv[0], "qwen")
+            self.assertIn("--prompt-interactive", argv)
+            self.assertIn("build the thing", argv)
+        else:
+            with self.assertRaises(runtimes.RuntimeError_) as ctx:
+                spec.launch_argv("x")
+            self.assertIn("npm install -g @qwen-code/qwen-code", str(ctx.exception))
 
     def test_unsupported_runtime_launch_raises_with_hint(self):
         from agentboom import runtimes

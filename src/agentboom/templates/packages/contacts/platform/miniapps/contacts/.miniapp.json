@@ -1,0 +1,14 @@
+{
+  "name": "contacts",
+  "description": "Self-filling address book + contacts.lookup capability for other mini-apps.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [],
+  "subscribes": ["email.received"],
+  "provides": [
+    {"name": "contacts.lookup", "endpoint": "POST /lookup",
+     "description": "resolve a name or email address to matching contacts"}
+  ],
+  "ui": null
+}

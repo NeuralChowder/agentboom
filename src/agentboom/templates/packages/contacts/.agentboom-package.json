@@ -1,0 +1,14 @@
+{
+  "name": "contacts",
+  "description": "An address book that fills itself: every incoming message adds its sender, and other mini-apps resolve names/addresses through the contacts.lookup capability.",
+  "kind": "addon",
+  "icon": "👥",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 013_contacts.sql, hot-loads the app).",
+    "Contacts grow automatically from incoming mail (with the email package) — or add them manually via the API.",
+    "Other mini-apps resolve people via the contacts.lookup capability (no hard-coded URLs)."
+  ]
+}

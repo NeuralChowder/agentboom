@@ -1,0 +1,21 @@
+{
+  "name": "email-templates",
+  "description": "The look of outgoing mail: per-mailbox HTML templates with a footer, seasonal picks (Christmas, Summer...), agent-drafted designs, and one-click activation. Sending applies the active template automatically.",
+  "kind": "addon",
+  "icon": "🎨",
+  "requires": ["email"],
+  "requirements": [],
+  "env_example": [
+    "",
+    "# ── Email templates (package: email-templates) ──",
+    "# Footer line under every outgoing message (leave the built-in, or brand it).",
+    "# EMAIL_TEMPLATE_FOOTER=Sent by MyAgent",
+    "# EMAIL_TEMPLATE_DISABLE=1    # send bare HTML, no wrapper at all"
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 012_email_templates.sql, hot-loads the app).",
+    "Every mailbox already sends with a built-in default — nothing to set up. Browse /api/email-templates/ to add templates and activate them per mailbox.",
+    "Seasonal use: create a 'Christmas' template and activate it on a mailbox; switch back (deactivate) when the season ends.",
+    "The single send path applies the active template automatically — replies, digests and any other sender get it for free. Cross-language callers use the email.render capability."
+  ]
+}
