@@ -1,0 +1,14 @@
+{
+  "user": {
+    "name": "",
+    "preferred_name": ""
+  },
+  "language": "auto",
+  "timezone": "UTC",
+  "country": "",
+  "currency": "",
+  "away": {
+    "timezone": null,
+    "country": null
+  }
+}

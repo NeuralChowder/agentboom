@@ -1,0 +1,16 @@
+{
+  "name": "settings",
+  "description": "Read/update the agent's global config at runtime — profile.json and the editable AGENTS.md context blocks. Used by the dashboard, the agent, and other mini-apps.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [],
+  "subscribes": [],
+  "provides": [
+    {"name": "settings.profile", "endpoint": "GET /profile",
+     "description": "the user profile (name, language, timezone, country)"},
+    {"name": "settings.context", "endpoint": "GET /context",
+     "description": "the editable AGENTS.md context blocks"}
+  ],
+  "ui": null
+}

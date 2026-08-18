@@ -4,6 +4,7 @@ The SQLite backend is exercised against a real temp database; the
 PostgreSQL path is compile-checked only (no server in CI).
 """
 import asyncio
+import json
 import os
 import pathlib
 import shutil
@@ -192,6 +193,39 @@ class AcceptedTests(unittest.TestCase):
         self.assertTrue(env["accepted"])
         self.assertFalse(env["done"])
         self.assertEqual(env["job_id"], 7)
+
+
+class ProfileTests(unittest.TestCase):
+    """The global profile reader: defaults <- file, never raises."""
+
+    def test_defaults_when_missing(self):
+        from agentboom_sdk import profile
+        os.environ["AGENT_PROFILE"] = str(pathlib.Path(_TMP) / "nope.json")
+        p = profile.get_profile(force_reload=True)
+        self.assertEqual(p["language"], "auto")
+        self.assertEqual(profile.timezone(), "UTC")
+        self.assertEqual(profile.user_name(), "")
+        self.assertFalse(profile.is_away())
+
+    def test_file_overrides_and_travel(self):
+        from agentboom_sdk import profile
+        path = pathlib.Path(_TMP) / "profile.json"
+        path.write_text(json.dumps({
+            "user": {"name": "Eduardo"},
+            "language": "auto",
+            "timezone": "Europe/Lisbon",
+            "country": "PT",
+            "currency": "EUR",
+            "away": {"timezone": "Asia/Tokyo", "country": "JP"},
+        }))
+        os.environ["AGENT_PROFILE"] = str(path)
+        profile.get_profile(force_reload=True)
+        self.assertEqual(profile.user_name(), "Eduardo")
+        self.assertEqual(profile.timezone(), "Europe/Lisbon")
+        self.assertTrue(profile.is_away())
+        self.assertEqual(profile.effective_timezone(), "Asia/Tokyo")
+        self.assertEqual(profile.effective_country(), "JP")
+        self.assertEqual(profile.currency(), "EUR")
 
 
 class CronWeekdaySevenTests(unittest.TestCase):

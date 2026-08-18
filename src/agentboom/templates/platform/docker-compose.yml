@@ -52,6 +52,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - DATA_DIR=/data
+      - AGENT_HOME=/agent-home
       - PLATFORM_ADMIN_PASSWORD=${PLATFORM_ADMIN_PASSWORD}
       - QWEN_AGENT_URL=http://qwen-agent:4170
       - QWEN_SERVER_TOKEN=${QWEN_SERVER_TOKEN}
@@ -66,6 +67,9 @@ services:
       # Bind-mounted for hot growth: drop a mini-app folder, it is served
       # within ~2s without rebuild or restart.
       - ./platform:/app
+      # The agent home (profile.json + AGENTS.md) so the settings mini-app
+      # can read/update the user's global config. Keep this loopback-only.
+      - ./.qwen-docker:/agent-home
       - agent-data:/data
 
 volumes:
