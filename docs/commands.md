@@ -254,3 +254,25 @@ templates.
 {"ok": true, "version": "0.1.0", "templates": ["platform"],
  "default_template": "platform"}
 ```
+
+## `agentboom self-update`
+
+Checks the latest GitHub release and compares it to the installed version.
+Without `--apply` it never runs an installer — it only reports and prints
+the exact command. With `--apply` it downloads the release wheel and
+reinstalls via pipx or pip (detected from how agentboom was installed).
+
+Distinct from `agentboom upgrade`, which syncs an **agent's** managed files;
+`self-update` updates **agentboom itself**.
+
+```bash
+agentboom self-update            # check + print the update command
+agentboom self-update --apply    # actually run the installer
+```
+
+```json
+{"ok": true, "current": "0.7.0", "latest": "0.8.0", "update_available": true,
+ "wheel_url": "https://.../agentboom-0.8.0-py3-none-any.whl",
+ "command": "pipx install --force agentboom @ https://...",
+ "message": "update available: 0.7.0 -> 0.8.0 ..."}
+```

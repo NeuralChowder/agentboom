@@ -89,6 +89,11 @@ docker compose logs -f qwen-agent
 | `agentboom console` | open the boomkeeper operator session (pre-configured `qwen`) |
 | `agentboom doctor` | environment checks (python, docker, compose, node) |
 | `agentboom selfcheck` | end-to-end QA of the templates in a temp dir |
+| `agentboom self-update` | check for a newer agentboom release (`--apply` installs it) |
+
+Note the two "update" commands do different things: `agentboom upgrade`
+syncs an **agent's** managed files to the installed base; `agentboom
+self-update` updates **agentboom itself**.
 
 Every command supports `--json` for machine-readable output (stable payload
 shape, meaningful exit codes) — see `docs/commands.md`.

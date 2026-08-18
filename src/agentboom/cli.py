@@ -25,6 +25,7 @@ from agentboom.commands import listcmd
 from agentboom.commands import packages as packages_cmd
 from agentboom.commands import registrycmd
 from agentboom.commands import selfcheck as selfcheck_cmd
+from agentboom.commands import selfupdate as selfupdate_cmd
 from agentboom.commands import upgrade as upgrade_cmd
 from agentboom.commands import validate as validate_cmd
 from agentboom.commands import DEFAULT_TEMPLATE, list_templates
@@ -173,6 +174,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("selfcheck", parents=[common],
                    help="end-to-end QA: init+validate+upgrade+add in a temp dir")
     sub.add_parser("version", parents=[common], help="print version")
+    p = sub.add_parser("self-update", parents=[common],
+                       help="check for a newer agentboom release (add --apply to install it)")
+    p.add_argument("--apply", action="store_true",
+                   help="actually run the installer (default: check + print the command)")
 
     return parser
 
@@ -345,6 +350,10 @@ def _print_human(command: str, result: dict) -> None:
         print(f"agentboom selfcheck: {'PASS' if result['ok'] else 'FAIL'}")
     elif command == "version":
         print(result["version"])
+    elif command == "self-update":
+        print(result.get("message", ""))
+        if result.get("applied") and result.get("stderr_tail"):
+            print(result["stderr_tail"], file=sys.stderr)
     else:
         print(json.dumps(result, indent=2))
 
@@ -412,6 +421,8 @@ def main(argv=None) -> int:
         elif args.command == "version":
             result = {"ok": True, "version": __version__, "templates": list_templates(),
                       "default_template": DEFAULT_TEMPLATE}
+        elif args.command == "self-update":
+            result = selfupdate_cmd.run(args)
         else:  # pragma: no cover — argparse enforces this
             parser.error(f"unknown command {args.command}")
             return 2
@@ -420,6 +431,7 @@ def main(argv=None) -> int:
             packages_cmd.PackageError, registrycmd.RegistriesError,
             registries_mod.RegistryError, adopt_cmd.AdoptError,
             fleetcmd.FleetError, console_cmd.ConsoleError,
+            selfupdate_cmd.SelfUpdateError,
             TemplateError, FileNotFoundError) as exc:
         if args.json:
             print(json.dumps({"ok": False, "error": str(exc)}))
