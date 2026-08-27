@@ -4,28 +4,21 @@ Where agentboom goes next, roughly in priority order.
 
 ## Near term
 
-- **agentboom-sdk: Postgres backend** — `agentboom_sdk.db` speaks SQLite
-  today; the personal-assistant agent (mycelium) runs PostgreSQL/asyncpg.
-  A second backend unlocks its full adoption (db, then idle).
-- **Upstream mycelium's evolved modules** — `agent.py` v2 session
-  lifecycle (named sessions, caps, idle reaping) and `untrusted` injection
-  scoring are production-proven superset versions waiting to come home.
+- **Upstream the reference instance's evolved modules** — `agent.py` v2
+  session lifecycle (named sessions, caps, idle reaping) and the durable
+  event bus are production-proven superset versions waiting to come home.
+- **Dashboard in the scaffold** — `ui/` and `dashboard/` exist as a
+  reference implementation; wire `manifest.ui` through the catalog payload
+  and add an opt-in at init (`--with-dashboard`).
 - **Platform MCP server template** — expose the gateway to external agents
   over MCP (catalog, job triggering, run queries).
 - **More packages** — candidates extracted and proven in production:
   `browser-scraper` (HTML-first, screenshot-matrix fallback for canvas),
   `transcribe-audio`, `email-manager` + `email-account-setup` (build on
   the `vault` package), `integration-coordinator`, `calendar-manager`.
-- **Note for devops-monitor (infra-watch):** it is pinned to
-  agentboom-sdk v0.2.1. v0.3.0's cron defaults its matching timezone to
-  Europe/Lisbon — audit scheduler call sites (or set an explicit tz)
-  before bumping the pin.
 
 ## Medium term
 
-- **Dashboard template** — manifest-driven Next.js admin UI (the
-  personal-assistant agent's dashboard renders any mini-app's `ui` block
-  with zero per-app code). Opt-in at init (`--with-dashboard`).
 - **Multi-template support (designed-in)** — `templates/` supports sibling
   templates with their own `.agentboom-template.json`; e.g. a `chat-only`
   profile (agent home without the platform).
@@ -36,24 +29,31 @@ Where agentboom goes next, roughly in priority order.
 
 ## Later
 
-- **TypeScript SDK twin** — for agents whose mini-apps are Node.
+- **TypeScript SDK: bridge tests + workspace** — `sdk-ts` ships the
+  gateway bridge (agent/llm/db/capabilities) for Node mini-apps; the test
+  suite and npm workspace wiring are still missing.
 - **CI kit** — GitHub Actions workflow template: selfcheck + validate on
   every PR to an agent repo.
 
 ## Shipped
 
+- v0.7.0 — dual-backend data layer in the SDK (SQLite default, PostgreSQL
+  when `DATABASE_URI` is set, `.pg.sql` migration variants); reference
+  dashboard + `@agentboom/ui` manifest renderer; `self-update` command;
+  Google OAuth package (Gmail + Calendar, vault-stored tokens).
+
 - v0.5.0 — fleet management: `adopt`, fleet registry + `agentboom fleet`,
   and `agentboom console` (the boomkeeper operator session). Wefts are
   indexed in `~/.agentboom/fleet.json` — an index, never a dependency.
 
-- v0.3.0 — upstreamed mycelium's tz-aware cron (dow 7 = Sunday) and the
-  `accepted` envelope into the SDK; base scheduler passes SCHEDULER_TZ
-  explicitly. Mycelium (edu-bot) adoption started on branch
-  `agentboom-sdk` (re-export shims + wheel pin, behaviour-verified in the
-  live container; deploy pending review).
+- v0.3.0 — upstreamed the reference instance's tz-aware cron
+  (dow 7 = Sunday) and the `accepted` envelope into the SDK; base
+  scheduler passes SCHEDULER_TZ explicitly. Adoption in the reference
+  personal-assistant instance started on branch `agentboom-sdk`
+  (re-export shims + wheel pin, behaviour-verified in the live container).
 - v0.2.1 — migrations-dir resolution fix for pip-installed SDK.
-  devops-monitor (infra-watch) fully migrated: vendored sdk removed,
-  19/19 e2e cases green, deployed healthy on owl.
+  A second production consumer fully migrated: vendored sdk removed,
+  19/19 e2e cases green, deployed healthy.
 - v0.2.0 — `agentboom-sdk` as an installable package (update the base in
   one place, agents take it via a pin bump); optional packages mechanism
   with `telegram`, `rich-link`, `vault`; GitHub release pipeline

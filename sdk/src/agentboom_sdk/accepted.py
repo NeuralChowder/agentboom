@@ -4,7 +4,7 @@ Several endpoints here return before their work is done — a lookup, a
 promotion pass, a file being read. Each had invented its own way of saying so,
 and every one of them said it in prose:
 
-    {"ok": true, "message": "Looking galp up on the web. It runs behind 48
+    {"ok": true, "message": "Looking up Acme on the web. It runs behind 48
      other agent turn(s); whatever is found appears on the profile when it
      lands."}
 
@@ -17,7 +17,7 @@ So: one envelope, and the two fields that matter are `job_id` and
 `status_url`.
 
     accepted(job_id=41, status_url="/api/activity/queue/41",
-             what="Looking up Galp on the web", queued_behind=3)
+             what="Looking up Acme on the web", queued_behind=3)
 
 `status_url` is relative when it is on this gateway and absolute when it is
 not, because a caller should never have to know which. `poll_after_ms` is a

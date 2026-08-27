@@ -14,7 +14,7 @@ matching Vixie cron.
 Usage:
     from agentboom_sdk.cron import next_cron_time, is_valid_cron
 
-    when = next_cron_time("0 9 * * 1-5", after=now, tz_name="Europe/Lisbon")
+    when = next_cron_time("0 9 * * 1-5", after=now, tz_name="America/New_York")
 """
 
 from __future__ import annotations

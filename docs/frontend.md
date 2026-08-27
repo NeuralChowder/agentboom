@@ -38,8 +38,9 @@ A mini-app declares screens in its `.miniapp.json` `ui` field (see
 fetches the view's `source` endpoint and renders it. Because the manifest
 is typed, mismatches surface at build time.
 
-This is the same declarative pattern edu-bot's dashboard uses — agentboom
-generalizes it so any agent gets it for free.
+This is the same declarative pattern the reference personal-assistant
+instance's dashboard uses — agentboom generalizes it so any agent gets it
+for free.
 
 ## Design systems are generated from tokens
 

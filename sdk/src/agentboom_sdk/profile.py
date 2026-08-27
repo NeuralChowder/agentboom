@@ -12,7 +12,7 @@ having to configure much:
 Fields (all optional; sensible defaults apply when absent):
     user.name / user.preferred_name   who the agent serves
     language                          "auto" (mirror the user) or a pinned code
-    timezone                          home IANA zone (e.g. Europe/Lisbon)
+    timezone                          home IANA zone (e.g. America/New_York)
     country / currency                home ISO country / ISO-4217 currency
     away.timezone / away.country      set only while travelling; override home
 

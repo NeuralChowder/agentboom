@@ -277,7 +277,7 @@ class FetchVetTests(unittest.TestCase):
 
     def test_registrable(self):
         from agentboom_sdk.fetch import _registrable
-        self.assertEqual(_registrable("invoices.tabil.pt"), "tabil.pt")
+        self.assertEqual(_registrable("invoices.acme.pt"), "acme.pt")
         self.assertEqual(_registrable("a.b.example.com"), "example.com")
 
 
@@ -297,19 +297,19 @@ class ProfileReaderTests(unittest.TestCase):
         path.write_text(json.dumps({
             "user": {"name": "Alex"},
             "language": "auto",
-            "timezone": "Europe/Lisbon",
-            "country": "PT",
-            "currency": "EUR",
+            "timezone": "America/New_York",
+            "country": "US",
+            "currency": "USD",
             "away": {"timezone": "Asia/Tokyo", "country": "JP"},
         }))
         os.environ["AGENT_PROFILE"] = str(path)
         profile.get_profile(force_reload=True)
         self.assertEqual(profile.user_name(), "Alex")
-        self.assertEqual(profile.timezone(), "Europe/Lisbon")
+        self.assertEqual(profile.timezone(), "America/New_York")
         self.assertTrue(profile.is_away())
         self.assertEqual(profile.effective_timezone(), "Asia/Tokyo")
         self.assertEqual(profile.effective_country(), "JP")
-        self.assertEqual(profile.currency(), "EUR")
+        self.assertEqual(profile.currency(), "USD")
 
 
 class CronWeekdaySevenTests(unittest.TestCase):
