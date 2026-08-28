@@ -50,6 +50,10 @@ services:
         USER_NAME: ${USER_NAME:-user}
     init: true
     restart: unless-stopped
+    # A graceful stop must outlive pool teardown and the in-flight turn's
+    # cancel path. The default 10s grace was not enough — stops landed as
+    # SIGKILL (exit 137), which is what the reaper exists to clean up.
+    stop_grace_period: 60s
     # host.docker.internal -> the host, so a local LLM server is reachable
     # from inside the container without extra config (Linux + Docker 20.10+).
     extra_hosts:
