@@ -1,0 +1,14 @@
+{
+  "name": "continente",
+  "description": "Connect to Continente (continente.pt): search, products, order history, and one-click cart adds on your behalf",
+  "kind": "connector",
+  "icon": "🛒",
+  "requires": ["vault"],
+  "requirements": ["cryptography>=44.0.0"],
+  "env_example": [],
+  "post_install": [
+    "Reading works immediately — search and product lookups need no session.",
+    "To enable cart adds and order history, store a session: ask the agent 'set up continente'. The agent walks you through copying document.cookie from a logged-in browser and stores it in the vault (service continente.pt:cookies).",
+    "Panel: the Continente page in the dashboard — status probe + session form."
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "continente",
+  "description": "Continente (continente.pt) session panel: store or clear the browser cookie jar (vault-backed), probe login state, search, and add to the account cart.",
+  "version": "0.1.0",
+  "status": "active",
+  "language": "python",
+  "jobs": [],
+  "subscribes": [],
+  "ui": {
+    "nav": {
+      "label": "Continente",
+      "icon": "cart",
+      "group": "Daily",
+      "order": 10
+    },
+    "views": [
+      {
+        "id": "status",
+        "title": "Status",
+        "type": "stats",
+        "source": "/status",
+        "refreshMs": 300000
+      },
+      {
+        "id": "session",
+        "title": "Session",
+        "type": "form",
+        "description": "Store the session from a logged-in browser: open continente.pt, open devtools console, run copy(document.cookie), paste the result below. The jar is stored encrypted in the vault and never shown back. To clear the stored session: DELETE /api/continente/session (or ask the agent 'clear my continente session').",
+        "fields": [
+          {
+            "name": "cookies",
+            "label": "Cookie string (document.cookie)",
+            "type": "textarea",
+            "required": true,
+            "placeholder": "sid=…; dwsid=…; cquid=…"
+          }
+        ],
+        "submit": {
+          "method": "POST",
+          "path": "/session",
+          "label": "Store session"
+        }
+      }
+    ]
+  }
+}
