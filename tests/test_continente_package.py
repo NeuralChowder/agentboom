@@ -18,6 +18,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 _TMP = tempfile.mkdtemp(prefix="agentboom-continente-tests-")
 os.environ["DATA_DIR"] = str(pathlib.Path(_TMP) / "data")
@@ -206,12 +207,12 @@ class ContinenteTestCase(unittest.TestCase):
             self.db.execute(
                 "DELETE FROM vault_audit WHERE service = ?",
                 (cont.VAULT_SERVICE,)))
-        cont._PROBE_CACHE.update(at=0.0, value=False, reason="")
+        cont._PROBE_CACHE.update(at=None, value=False, reason="")
 
     def tearDown(self):
         if self.fake is not None:
             self.fake.uninstall()
-        cont._PROBE_CACHE.update(at=0.0, value=False, reason="")
+        cont._PROBE_CACHE.update(at=None, value=False, reason="")
 
     def run_async(self, coro):
         return self.loop.run_until_complete(coro)
@@ -348,6 +349,20 @@ class LoginProbeTests(ContinenteTestCase):
         self.run_async(cont.is_logged_in(cookies={"sid": "x"}, force=True))
         probe_calls_force = sum(1 for c in self.fake.calls if c[0] == "GET" and "/conta/moradas/" in c[1])
         self.assertEqual(probe_calls_force, 2, "force=True must bypass cache")
+
+    def test_probe_fires_on_fresh_clock(self):
+        # Regression: on a freshly-booted host/container time.monotonic() is
+        # small (< ttl). An un-probed cache must still be a MISS, not a
+        # spurious hit. Patch the clock down to reproduce that environment.
+        self.fake = FakeHttp({
+            "/conta/moradas/": (200, MORADAS_LOGGED_IN),
+        }).install()
+        cont._PROBE_CACHE.update(at=None, value=False, reason="")
+        with mock.patch.object(cont.time, "monotonic", return_value=50.0):
+            ok, reason = self.run_async(cont.is_logged_in(cookies={"sid": "x"}))
+        self.assertTrue(ok)
+        self.assertIn("saved-addresses", reason)
+        self.assertEqual(len(self.fake.calls), 1, "fresh cache must probe")
 
 
 class VaultSessionTests(ContinenteTestCase):

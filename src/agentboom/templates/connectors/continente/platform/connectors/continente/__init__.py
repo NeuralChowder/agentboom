@@ -238,7 +238,12 @@ def parse_cookie_string(text: str) -> Dict[str, str]:
 # means REFUSE the mutation, never allow it.
 
 
-_PROBE_CACHE: Dict[str, Any] = {"at": 0.0, "value": False, "reason": ""}
+# "at" is None until the first probe; it then holds a time.monotonic() stamp.
+# Using None (not 0.0) for the "never probed" state is essential: a 0.0
+# sentinel makes `now - 0.0 < ttl` depend on the host's monotonic clock, so on
+# a freshly-booted machine/container (monotonic < ttl) the empty cache is
+# wrongly read as a fresh hit and the probe is skipped.
+_PROBE_CACHE: Dict[str, Any] = {"at": None, "value": False, "reason": ""}
 
 
 async def is_logged_in(cookies: Optional[Dict[str, str]] = None,
@@ -256,7 +261,8 @@ async def is_logged_in(cookies: Optional[Dict[str, str]] = None,
         return False, "no session stored"
     ttl = _PROBE_TTL_SEC if max_age is None else float(max_age)
     now = time.monotonic()
-    if not force and now - _PROBE_CACHE["at"] < ttl:
+    if (not force and _PROBE_CACHE["at"] is not None
+            and now - _PROBE_CACHE["at"] < ttl):
         return bool(_PROBE_CACHE["value"]), str(_PROBE_CACHE["reason"])
     try:
         status, _, raw = await http_get(f"{BASE}/conta/moradas/", cookies=cookies)
