@@ -110,20 +110,16 @@ Committed in this repo (see `git log`):
 - **sdk-ts** — 84 tests across 6 modules (config, db, llm, agent,
   capabilities, index exports) using Node built-in runner. npm test 0
   failures, tsc clean, dist/ 6 `.js` + `.d.ts` pairs. (commit 32cbb54)
-
-## In flight
-
-- **continente** tests part 2 + 1 parser fix (agent running).
+- **continente** — 693-line connector (vault-backed session, search,
+  PDP, order history, cart), 183-line miniapp, 81-line skill. 699-line
+  test module (51 tests): cookie parsing, login probe, vault round-trip,
+  FakeHttp API tests, miniapp panel. Parser fix (date regex `{3,}` → `{3}`).
+  Full suite 311/311. Zero leaks. Moved to `connectors/continente/`.
+  (commit f90d6d6)
 
 ## Queue (FIFO, parallel agents)
 
-1. **continente** (connector) — package 6/6 files done + validated on a
-   scratch agent; **live e2e PASS on the test dash** (health/status,
-   session store→probe→clear round-trip against the real site's 302
-   probe, secret hygiene, catalog). Remaining: test part 2 (spec in
-   `/tmp/continente-handoff.md`) + resolve 1 failing parser test
-   (`parse_order_date("17 Augosto 25")`), then move to
-   `connectors/continente/` and commit.
+None — all queued packages are complete. Next steps below.
 
 ## Remaining
 
