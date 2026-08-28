@@ -1,0 +1,27 @@
+{
+  "name": "events",
+  "description": "Durable event bus: at-least-once HTTP delivery, retries with backoff, replay.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [
+    {"name": "drain", "type": "http", "target": "drain",
+     "interval_min": 1, "enabled": true}
+  ],
+  "subscribes": [],
+  "ui": {
+    "nav": {"label": "Events", "icon": "inbox", "group": "System", "order": 40},
+    "views": [
+      {"id": "health", "title": "Delivery health", "type": "stats", "source": "/health"},
+      {"id": "log", "title": "Recent events", "type": "table",
+       "source": "/log", "rows": "events",
+       "columns": [
+         {"key": "id", "label": "ID"},
+         {"key": "type", "label": "Type"},
+         {"key": "subject", "label": "Subject"},
+         {"key": "source", "label": "Source"},
+         {"key": "published_at", "label": "Published"}
+       ],
+       "empty": "No events published yet."}
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "events",
+  "description": "Durable event bus: publish once, deliver at-least-once over HTTP. Other mini-apps and sidecars subscribe; failures retry with backoff, and past events can be replayed. Cross-app reactions without re-polling.",
+  "kind": "addon",
+  "icon": "📬",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 011_events.sql, hot-loads the app, starts the drain tick).",
+    "Subscribe an app: POST /api/events/subscriptions with {\"app_name\": \"mfa-relay\", \"event_type\": \"mfa.code_received\", \"endpoint\": \"/api/mfa-relay/on-mfa\"} (endpoint is a gateway path; wildcards 'email.*' and '*' work).",
+    "Publish: POST /api/events/publish with {\"type\": \"mfa.code_received\", \"payload\": {...}, \"dedupe_key\": \"stable-identity\"} — dedupe_key makes re-ingestion idempotent.",
+    "Watch: GET /api/events/health shows delivered / in-flight / dead per subscriber; POST /api/events/replay/{event_id} re-delivers a past event."
+  ]
+}
