@@ -26,6 +26,7 @@ from agentboom.commands import packages as packages_cmd
 from agentboom.commands import registrycmd
 from agentboom.commands import selfcheck as selfcheck_cmd
 from agentboom.commands import selfupdate as selfupdate_cmd
+from agentboom.commands import setup as setup_cmd
 from agentboom.commands import upgrade as upgrade_cmd
 from agentboom.commands import validate as validate_cmd
 from agentboom.commands import DEFAULT_TEMPLATE, list_templates
@@ -66,6 +67,28 @@ def build_parser() -> argparse.ArgumentParser:
                    help="host port publishing the platform gateway (default 8000)")
     p.add_argument("--force", action="store_true",
                    help="allow a non-empty target dir (existing files are never overwritten)")
+    p.add_argument("--generate-env", action="store_true",
+                   help="also write a ready .env (random tokens) + settings.json")
+    p.add_argument("--llm-url",
+                   help="OpenAI-compatible LLM base URL (used by --generate-env)")
+    p.add_argument("--llm-key",
+                   help="LLM API key (used by --generate-env; 'not-needed' for local)")
+    p.add_argument("--llm-model",
+                   help="LLM model name/tag (used by --generate-env; default generic)")
+
+    p = sub.add_parser("setup", parents=[common],
+                       help="configure an agent's .env + settings.json (wizard)")
+    p.add_argument("dir", nargs="?", default=".", help="agent directory (default: cwd)")
+    p.add_argument("--non-interactive", action="store_true",
+                   help="no prompts; read config from AGENT_LLM_URL / "
+                        "AGENT_LLM_API_KEY / AGENT_LLM_MODEL env vars (scripts/CI)")
+    p.add_argument("--yes", "-y", action="store_true",
+                   help="accept defaults without prompting")
+    p.add_argument("--llm-url", help="LLM base URL (overrides env / prompt)")
+    p.add_argument("--llm-key", help="LLM API key (overrides env / prompt)")
+    p.add_argument("--llm-model", help="LLM model name/tag (overrides env / prompt)")
+    p.add_argument("--timezone", help="IANA timezone for scheduling "
+                       "(default: detected, e.g. Europe/Lisbon)")
 
     p = sub.add_parser("validate", parents=[common],
                        help="structural health checks for an agent project")
@@ -216,14 +239,36 @@ def _print_init(result: dict) -> None:
           f"files: {len(result['created'])}  managed: {result['managed_count']}")
     if result["skipped_existing"]:
         print(f"  skipped (already existed): {', '.join(result['skipped_existing'])}")
+    if result.get("env_generated"):
+        keys = result.get("env_keys_set", [])
+        extra = f" ({', '.join(keys)})" if keys else ""
+        print(f"  .env + settings.json generated{extra}")
     print("Next steps:")
     for line in result["next_steps"]:
+        print(f"  {line}")
+
+
+def _print_setup(result: dict) -> None:
+    print(f"Configured agent '{result['name']}' at {result['agent_dir']}")
+    set_keys = result.get("env_keys_set", [])
+    if set_keys:
+        print(f"  .env: set {', '.join(set_keys)}")
+    else:
+        print("  .env: no changes (already configured)")
+    if result.get("settings_written"):
+        print(f"  settings.json: model '{result['llm']['model']}' at {result['llm']['base_url']}")
+    if result.get("timezone"):
+        print(f"  timezone: {result['timezone']}")
+    print("Next:")
+    for line in result.get("next", []):
         print(f"  {line}")
 
 
 def _print_human(command: str, result: dict) -> None:
     if command == "init":
         _print_init(result)
+    elif command == "setup":
+        _print_setup(result)
     elif command == "validate":
         _print_validate(result)
     elif command == "upgrade":
@@ -416,6 +461,8 @@ def main(argv=None) -> int:
             result = listcmd.run_list(args)
         elif args.command == "doctor":
             result = doctor_cmd.run(args)
+        elif args.command == "setup":
+            result = setup_cmd.run(args)
         elif args.command == "selfcheck":
             result = selfcheck_cmd.run(args)
         elif args.command == "version":
@@ -431,7 +478,7 @@ def main(argv=None) -> int:
             packages_cmd.PackageError, registrycmd.RegistriesError,
             registries_mod.RegistryError, adopt_cmd.AdoptError,
             fleetcmd.FleetError, console_cmd.ConsoleError,
-            selfupdate_cmd.SelfUpdateError,
+            selfupdate_cmd.SelfUpdateError, setup_cmd.SetupError,
             TemplateError, FileNotFoundError) as exc:
         if args.json:
             print(json.dumps({"ok": False, "error": str(exc)}))

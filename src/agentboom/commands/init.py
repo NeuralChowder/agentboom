@@ -14,7 +14,7 @@ from agentboom.registry import (
 from agentboom.render import render_file
 from agentboom import fleet as fleet_reg
 
-from . import DEFAULT_TEMPLATE, skills_base_root, template_dir
+from . import DEFAULT_TEMPLATE, setup as setup_cmd, skills_base_root, template_dir
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
@@ -137,6 +137,29 @@ def run(args) -> dict:
     save_registry(target, registry)
     fleet_reg.register_best_effort(target)
 
+    next_steps = [
+        f"cd {target}",
+        "cp .env.example .env   # fill in the required secrets",
+        "docker compose up --build -d",
+        "docker compose logs -f qwen-agent",
+        "# Read .qwen-docker/AGENTS.md — it is the agent's operating manual.",
+    ]
+
+    env_result = None
+    if getattr(args, "generate_env", False):
+        llm = {
+            "base_url": (getattr(args, "llm_url", None) or "").strip(),
+            "api_key": (getattr(args, "llm_key", None) or "").strip(),
+            "model": (getattr(args, "llm_model", None) or "").strip(),
+        }
+        env_result = setup_cmd.generate_env(target, llm)
+        next_steps = [
+            f"cd {target}",
+            "docker compose up --build -d",
+            "docker compose logs -f qwen-agent",
+            "# Read .qwen-docker/AGENTS.md — it is the agent's operating manual.",
+        ]
+
     return {
         "ok": True,
         "path": str(target),
@@ -146,11 +169,9 @@ def run(args) -> dict:
         "created": sorted(created),
         "skipped_existing": sorted(skipped),
         "managed_count": len(managed),
-        "next_steps": [
-            f"cd {target}",
-            "cp .env.example .env   # fill in the required secrets",
-            "docker compose up --build -d",
-            "docker compose logs -f qwen-agent",
-            "# Read .qwen-docker/AGENTS.md — it is the agent's operating manual.",
-        ],
+        "env_generated": env_result is not None,
+        "env_keys_set": (env_result or {}).get("env_keys_set", []),
+        "settings_generated": (env_result or {}).get("settings_written", False),
+        "llm": (env_result or {}).get("llm", {}),
+        "next_steps": next_steps,
     }

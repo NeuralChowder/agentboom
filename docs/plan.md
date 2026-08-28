@@ -116,6 +116,17 @@ Committed in this repo (see `git log`):
   FakeHttp API tests, miniapp panel. Parser fix (date regex `{3,}` → `{3}`).
   Full suite 311/311. Zero leaks. Moved to `connectors/continente/`.
   (commit f90d6d6)
+- **Onboarding: `agentboom setup` + `init --generate-env`** — a non-developer
+  can go from `init` to a running agent. `setup` is an interactive wizard
+  (3 plain questions: where the model runs / model name / timezone) with a
+  `--non-interactive` mode driven by `AGENT_LLM_URL` / `AGENT_LLM_API_KEY` /
+  `AGENT_LLM_MODEL` for scripts & CI. `init --generate-env` does the same in
+  one shot. Writes gitignored `.env` (random CSPRNG tokens) + `settings.json`
+  (model provider wired, 0600 perms). Idempotent: tokens are never
+  regenerated, an existing working setup is preserved, only a fresh LLM answer
+  overwrites model config. No secret value ever appears in the JSON payload
+  (key names only). 21 tests. Full suite 332/332. Also fixed a LAN-IP leak in
+  docs/plan.md.
 
 ## Queue (FIFO, parallel agents)
 
@@ -133,8 +144,10 @@ None — all queued packages are complete. Next steps below.
    continente) + compose; zero personal data. (init/validate/npm-build
    already verified in a /tmp scaffold.)
 3. **Onboarding final pass** in the real agentboom-agent: Commando ✓,
-   telegram-setup skill ✓, agent-UI link ✓, mobile ✓ — remaining: the
-   first-run flow (join telegram + explain self-evolve, simple not strict).
+   telegram-setup skill ✓, agent-UI link ✓, mobile ✓, **technical setup
+   onboarding ✓** (`agentboom setup` wizard + `init --generate-env`, with a
+   non-interactive mode for scripts). Remaining: the in-agent first-run flow
+   (join telegram + explain self-evolve, simple not strict).
 4. **port-platform + edu-bot-cleanup** — BLOCKED on the other agent's
    feed-hub cutover in edu-bot (worktree dirty; migrations untracked).
    When free: one-way edu-bot → agentboom-agent migration snapshot from
@@ -146,7 +159,7 @@ None — all queued packages are complete. Next steps below.
 6. **Final verification** — full suite, `docker compose config`, zero-leak
    grep across both repos, dual-DB smoke, edu-bot still healthy (its
    containers keep running), and the MCP list delivered to the user
-   (postgres-mcp, web-search `192.168.100.206:3115/mcp`,
+   (postgres-mcp, web-search `<mcp-host>:3115/mcp`,
    puppeteer/playwright, doc-extraction, sqlite option).
 
 ## Dropped (explicit decisions)

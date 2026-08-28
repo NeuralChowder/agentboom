@@ -8,11 +8,28 @@ domain-specific in this repo grows on top of it.
 
 ## Quickstart
 
+The easy path — one wizard asks a few plain questions, generates the secrets,
+and writes a ready `.env` + `settings.json`:
+
 ```bash
-cp .env.example .env        # fill in the required secrets
+agentboom setup                 # interactive (asks about your model + timezone)
 docker compose up --build -d
 docker compose logs -f qwen-agent
 ```
+
+For a script or CI (no prompts — driven by env vars):
+
+```bash
+AGENT_LLM_URL=http://host.docker.internal:4000/v1 \
+AGENT_LLM_MODEL=generic \
+AGENT_LLM_API_KEY=not-needed \
+agentboom setup --non-interactive
+```
+
+Or do it all at `init` time: `agentboom init <dir> --generate-env
+--llm-url ... --llm-model ...`. If you prefer to fill things in by hand:
+`cp .env.example .env`, then copy `.qwen-docker/settings.example.json` to
+`.qwen-docker/settings.json` and edit the model provider.
 
 - Agent HTTP API: `http://127.0.0.1:{{PORT_AGENT}}`
 - Dashboard: `http://127.0.0.1:{{PORT_DASHBOARD}}`

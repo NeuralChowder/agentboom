@@ -74,7 +74,8 @@ docker compose logs -f qwen-agent
 
 | Command | What it does |
 |---|---|
-| `agentboom init <dir>` | scaffold a new agent from the base template |
+| `agentboom init <dir>` | scaffold a new agent from the base template (`--generate-env` also writes a ready `.env` + `settings.json`) |
+| `agentboom setup [dir]` | configure an agent's `.env` + `settings.json` — interactive wizard, or `--non-interactive` (driven by `AGENT_LLM_*` env vars) for scripts |
 | `agentboom validate [dir]` | structural health checks (files, manifests, cron, env coverage, drift) |
 | `agentboom upgrade [dir]` | check/apply sync of managed base files (`--apply`, `--force`) |
 | `agentboom add skill\|miniapp <name>` | scaffold a capability inside an agent |
