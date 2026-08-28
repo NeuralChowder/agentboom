@@ -107,11 +107,13 @@ Committed in this repo (see `git log`):
   test module (48 tests). Full suite 272/272. E2e: health, empty-state,
   settings seed, generate 502 for empty research, catalog mount.
   (commit c8686a0)
+- **sdk-ts** — 84 tests across 6 modules (config, db, llm, agent,
+  capabilities, index exports) using Node built-in runner. npm test 0
+  failures, tsc clean, dist/ 6 `.js` + `.d.ts` pairs. (commit 32cbb54)
 
 ## In flight
 
 - **continente** tests part 2 + 1 parser fix (agent running).
-- **sdk-ts** tests + dist build (agent running).
 
 ## Queue (FIFO, parallel agents)
 
@@ -122,8 +124,6 @@ Committed in this repo (see `git log`):
    `/tmp/continente-handoff.md`) + resolve 1 failing parser test
    (`parse_order_date("17 Augosto 25")`), then move to
    `connectors/continente/` and commit.
-2. **movienight** — brief at `/tmp/movienight-port-brief.md`.
-3. **sdk-ts** — tests + dist build, scope `sdk-ts/` only.
 
 ## Remaining
 
