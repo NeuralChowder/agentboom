@@ -8,12 +8,11 @@
     "",
     "# ── Telegram channel (package: telegram) ──",
     "TELEGRAM_BOT_TOKEN=",
-    "CHANNEL_NAME={{AGENT_NAME}}-telegram",
     "QWEN_SERVE_ARGS=--channel all"
   ],
   "post_install": [
-    "Create a bot with @BotFather on Telegram and put the token in .env (TELEGRAM_BOT_TOKEN).",
-    "Add the channels block from docs/telegram-channel.md to .qwen-docker/settings.json.",
+    "Easiest: ask the agent 'set up telegram' — it has the telegram-setup skill and walks you through it.",
+    "Manual: create a bot with @BotFather, put the token in .env (TELEGRAM_BOT_TOKEN), add the channels block from docs/telegram-channel.md to .qwen-docker/settings.json.",
     "Set allowedUsers to your Telegram user id (strict allowlist — a channel is a remote shell into this agent).",
     "Restart the agent container: docker compose restart qwen-agent."
   ]
