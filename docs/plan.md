@@ -102,11 +102,15 @@ Committed in this repo (see `git log`):
   E2e: mounts disabled-by-default, /runs 409 guard, settings seed,
   6 jobs registered in catalog. 2 defects fixed (queues_stalled bindings,
   _implement drain priority). (commit 03cae7c)
+- **movienight** — 5 tables (migrations 020), 10 routes, title_fold
+  TEXT NOT NULL, settings JSON key/value, asyncio.Lock guard, 448-line
+  test module (48 tests). Full suite 272/272. E2e: health, empty-state,
+  settings seed, generate 502 for empty research, catalog mount.
+  (commit c8686a0)
 
 ## In flight
 
 - **continente** tests part 2 + 1 parser fix (agent running).
-- **movienight** fresh port (agent running).
 - **sdk-ts** tests + dist build (agent running).
 
 ## Queue (FIFO, parallel agents)
