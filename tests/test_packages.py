@@ -76,13 +76,15 @@ class VaultPackageTests(AgentTestCase):
 
 
 class TelegramPackageTests(AgentTestCase):
-    def test_install_renders_agent_name_into_env(self):
+    def test_install_renders_agent_name_and_ships_skill(self):
         packages_cmd.run_add_package(_pkg_args("telegram", self.agent_dir))
         env = (self.agent_dir / ".env.example").read_text(encoding="utf-8")
         self.assertIn("TELEGRAM_BOT_TOKEN=", env)
-        self.assertIn(f"CHANNEL_NAME={self.name}-telegram", env)
+        doc = (self.agent_dir / "docs/telegram-channel.md").read_text(encoding="utf-8")
+        self.assertIn(self.name, doc)
+        self.assertNotIn("{{", doc)
         self.assertTrue(
-            (self.agent_dir / "docs/telegram-channel.md").is_file()
+            (self.agent_dir / ".qwen-docker/skills/telegram-setup/SKILL.md").is_file()
         )
 
     def test_unknown_package_raises(self):
