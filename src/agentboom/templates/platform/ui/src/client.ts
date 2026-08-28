@@ -38,8 +38,15 @@ export class PlatformClient {
     return h;
   }
 
-  private get fetch(): typeof fetch {
-    return this.opts.fetchImpl ?? fetch;
+  /**
+   * fetch bound to the global object. Calling a bare `fetch` reference as a
+   * method (e.g. `this.fetch(...)`) detaches the WebIDL `this` and throws
+   * "Illegal invocation" in Chromium — so the binding is made explicit here.
+   */
+  private request(url: string, init?: RequestInit): Promise<Response> {
+    const impl: typeof fetch =
+      this.opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
+    return impl(url, init);
   }
 
   /** Absolute URL for a platform path (leading slash optional). */
@@ -49,7 +56,7 @@ export class PlatformClient {
   }
 
   async getJson<T = unknown>(path: string): Promise<T> {
-    const resp = await this.fetch(this.url(path), { headers: this.headers() });
+    const resp = await this.request(this.url(path), { headers: this.headers() });
     if (!resp.ok) throw new Error(`GET ${path} -> HTTP ${resp.status}`);
     return (await resp.json()) as T;
   }
@@ -59,7 +66,7 @@ export class PlatformClient {
     path: string,
     body?: unknown,
   ): Promise<T> {
-    const resp = await this.fetch(this.url(path), {
+    const resp = await this.request(this.url(path), {
       method,
       headers: this.headers(
         body === undefined ? {} : { "content-type": "application/json" },

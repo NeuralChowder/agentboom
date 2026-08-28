@@ -86,6 +86,9 @@ services:
     environment:
       - AGENTBOOM_PLATFORM_URL=http://endpoint-platform:8000
       - NEXT_PUBLIC_PLATFORM_TOKEN=${PLATFORM_TOKEN}
+      # The agent's own web UI (qwen serve), as the user's browser sees it —
+      # the Commando's "Open agent UI" link. Inlined at build time.
+      - NEXT_PUBLIC_AGENT_UI=http://127.0.0.1:${PORT_AGENT:-4170}
     ports:
       - "127.0.0.1:${PORT_DASHBOARD:-3000}:3000"
     volumes:

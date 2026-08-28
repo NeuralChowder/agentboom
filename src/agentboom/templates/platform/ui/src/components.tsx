@@ -63,8 +63,7 @@ export function AgentBoomProvider(props: AgentBoomProviderProps) {
   );
   return (
     <AgentBoomContext.Provider value={value}>
-      <GlobalStyles theme={theme} />
-      {props.children}
+      <GlobalStyles theme={theme}>{props.children}</GlobalStyles>
     </AgentBoomContext.Provider>
   );
 }
@@ -76,7 +75,13 @@ export function useAgentBoom(): AgentBoomContextValue {
 }
 
 /** Emits the theme's CSS custom properties on a wrapper element. */
-export function GlobalStyles({ theme }: { theme: Theme }) {
+export function GlobalStyles({
+  theme,
+  children,
+}: {
+  theme: Theme;
+  children?: React.ReactNode;
+}) {
   const vars = themeToCssVars(theme) as React.CSSProperties;
   return (
     <div
@@ -90,7 +95,9 @@ export function GlobalStyles({ theme }: { theme: Theme }) {
         lineHeight: "var(--ab-line-height-base)",
         minHeight: "100%",
       }}
-    />
+    >
+      {children}
+    </div>
   );
 }
 
