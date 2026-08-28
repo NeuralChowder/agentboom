@@ -535,6 +535,9 @@ def _catalog_payload() -> Dict[str, Any]:
             "provides": entry.get("provides", []),
             "uses": entry.get("uses", []),
             "missing_capabilities": entry.get("missing_capabilities", []),
+            # The dashboard renders views straight from this block; without
+            # it in the payload every app falls out of the manifest UI.
+            "ui": manifest.get("ui"),
         })
     return {
         "agent": "{{AGENT_NAME}}",

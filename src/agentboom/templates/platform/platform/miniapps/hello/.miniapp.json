@@ -20,5 +20,15 @@
     }
   ],
   "subscribes": ["hello.beat"],
-  "ui": null
+  "ui": {
+    "nav": { "label": "Hello", "icon": "info", "group": "Example", "order": 99 },
+    "views": [
+      {
+        "id": "about",
+        "title": "About",
+        "type": "stats",
+        "source": "/"
+      }
+    ]
+  }
 }
