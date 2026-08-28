@@ -1,0 +1,20 @@
+{
+  "name": "self-evolve",
+  "description": "The agent's self-improvement loop: nightly runs that find real defects and make at most one verified root-cause change, a night-drained backlog, a same-day repair loop, and a measured fitness landscape with noise-aware selection over time.",
+  "kind": "addon",
+  "icon": "🧬",
+  "requires": ["events"],
+  "requirements": [],
+  "env_example": [
+    "# self-evolve: notify via Telegram (optional — ntfy package takes priority if configured)",
+    "TELEGRAM_BOT_TOKEN=",
+    "TELEGRAM_CHAT_ID="
+  ],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 019_self_evolve.sql, hot-loads the app, registers the four tick jobs).",
+    "How it works: a nightly agent job (02:00) inspects the live system and makes at most ONE focused, verified, root-cause change — or nothing; everything it finds but does not do goes to a backlog that the night drain works item by item (low priority, until the drain cutoff hour); a 15-minute repair tick reacts to terminal failures; a 30-minute tick samples the fitness landscape and judges each change against the metric it declared (kept / regressed / confounded, fix-forward — never auto-revert).",
+    "Enable it when you are ready: PUT /api/self-evolve/settings with {\"enabled\": true} — the package ships disabled, and the nightly and meta runs no-op until it is on.",
+    "Watch: GET /api/self-evolve/stats (overview), GET /api/self-evolve/backlog (the loop's backlog with Adopt/Dismiss overrides), GET /api/self-evolve/metrics/outcomes (what each change measured to). The dashboard's Self-evolve section shows the same.",
+    "Notify is off until a channel exists: set NTFY_TOPIC (with the ntfy package) or TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID; with neither, POST /api/self-evolve/notify answers 503 and the loop simply stays silent."
+  ]
+}

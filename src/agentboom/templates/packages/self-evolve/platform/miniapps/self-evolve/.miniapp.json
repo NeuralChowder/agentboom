@@ -1,0 +1,472 @@
+{
+  "name": "self-evolve",
+  "description": "The self-improvement loop: nightly runs (defects first, at most one focused verified change), a night-drained autonomous backlog, a same-day repair loop, and a measured fitness landscape with noise-aware selection over time (kept / regressed / confounded — fix-forward, never auto-revert).",
+  "version": "1.0.0",
+  "language": "python",
+  "jobs": [
+    {
+      "name": "self-evolve-repair-tick",
+      "type": "http",
+      "target": "repair/tick",
+      "description": "Scan terminal failures (dead event deliveries, failing scheduled jobs, abandoned runs), dedupe them into repair requests, reclaim stale repair turns, and start at most one repair turn",
+      "interval_min": 15,
+      "enabled": true
+    },
+    {
+      "name": "self-evolve-backlog-tick",
+      "type": "http",
+      "target": "backlog/tick",
+      "description": "Night shift for the backlog: reclaim stale in-flight items and, inside the drain window under the per-night cap, start the oldest open autonomous item at low agent-queue priority so operational work always goes first",
+      "interval_min": 15,
+      "enabled": true
+    },
+    {
+      "name": "self-evolve-metrics-tick",
+      "type": "http",
+      "target": "metrics/sample",
+      "description": "Sample the fitness landscape — reliability, friction, workload regime, the LLM latency probe, stalled queues — into selfevolve_metrics; the trends are what the loop evolves against",
+      "interval_min": 30,
+      "enabled": true
+    },
+    {
+      "name": "self-evolve-outcome-tick",
+      "type": "http",
+      "target": "metrics/reconcile",
+      "description": "Selection over time: judge changes older than outcome_measure_days against the metric they declared (noise-aware, confounder-gated), and watch the guardrail metrics across the window",
+      "interval_min": 30,
+      "enabled": true
+    },
+    {
+      "name": "self-evolve-nightly",
+      "type": "agent",
+      "prompt": "First GET /api/self-evolve/settings (token in env); if enabled is false, do nothing else — end this run. Then run the self-evolve skill: read the skill at .qwen/skills/self-evolve/SKILL.md and follow it exactly. Work its steps in order. Step 0 — state: GET /api/self-evolve/backlog?status=open and GET /api/self-evolve/runs?limit=5 so you do not re-raise or redo what is already tracked; reset any in-flight backlog row older than the inflight_stale_hours setting (GET /api/self-evolve/settings, default 12) via POST /api/self-evolve/backlog/{id}/reset; reclaim any run row stuck 'running' for over 2 hours via POST /api/self-evolve/runs/{id}/finish with an error. Step 1 — start a run (POST /api/self-evolve/runs, trigger schedule). Step 2 — the defect pass (defects beat novelty): GET /health (load errors), GET /api/catalog (apps with load errors), GET /api/events/health (stuck deliveries), the jobs_failing metric, GET /api/self-evolve/repair/requests (terminal failures are already watched by the repair loop — do not duplicate work it has a repair request for, and do not re-open a failure it classified expected for its recorded reason), the queues_stalled metric in GET /api/self-evolve/metrics/latest (a queue holding work with no progress is a defect even though its job reports success), and re-verify the last 5 runs' changes still work. Step 3 — the learning pass (bounded): if a news digest app is installed read the last 7 digests (at most one candidate from news, only if it maps onto something this system already does), plus one web search rotating by weekday (Mon agent frameworks, Tue FastAPI/async patterns, Wed databases/migrations, Thu LLM-agent patterns, Fri task automation, Sat dashboard/frontend patterns, Sun security) — one search, at most 2 results. Step 4 — the usage pass: the state of the data the platform holds for the user — for each collection the catalog lists: total, last-30-day growth, the newest 10 through the app's own list endpoint, and the question 'could the user tell at a glance what each item is and is for?'; a shape that costs them is an improvement candidate whose evidence is the observation itself, never a pre-written idea — derive the improvement, do not re-raise anything already in the open backlog. Step 5 — the architecture pass (a bounded scan, not a rewrite): duplicated concepts across mini-apps and the frontend — the same logic in two places, an endpoint reimplementing another endpoint or an SDK helper, a mini-app privately owning what should be a shared capability, convention drift within one app — unify, split, refactor or propose a shared concept; backend AND frontend in scope. Step 6 — selection with the trash test (the value sentence must name which side it helps: the system, or the user's life and business), and AT MOST ONE focused change, ROOT-CAUSE ONLY — a workaround is never an end state; if the root fix is bigger than the run's budget, file it to the backlog with tier=autonomous and the plan in why so the night drain builds it — verified end-to-end before the run is recorded. Note the division of labour: open tier=autonomous backlog items are worked by the night drain (POST /api/self-evolve/backlog/tick, one item per turn, low priority, until the drain cutoff hour) — do NOT implement backlog items yourself during the run; your one discretionary change is for fresh findings, and you may still dismiss a backlog item you find stale or wrong. Also: 'regressed' change outcomes (GET /api/self-evolve/metrics/outcomes?verdict=regressed) are top-priority defects — FIX FORWARD, never revert: diagnose why the change moved its metric the wrong way (read the change, read the metric samples) and ship a NEW root-cause change that corrects the regression, verified, with its own expected_metrics. Never auto-revert a commit — later work, including features the user requested, may stand on it; a revert only ever happens on the user's explicit instruction, recorded in the run, and is then recorded via POST /api/self-evolve/metrics/outcomes/{id}/reverted. After ANY change you made, commit your change to the agent's git repository — the commit message must end in provenance: run=<run_id> (find a change later with git log --grep 'run=<run_id>') — and pass the short SHA as genome_commit; in the finish payload declare expected_metrics (name, direction, baseline from GET /api/self-evolve/metrics/latest read BEFORE the change) for any change expected to move a metric. Mine recent completed agent turns for friction the user experienced — a correction, a re-ask, a rejected suggestion, or them doing by hand what the system should do — logging each via POST /api/self-evolve/friction that GET /api/self-evolve/friction shows is not already there (the interactive agent logs friction in the moment; this is the backstop for what it missed). The autonomy line is non-negotiable: anything touching only the platform itself (code, database, internal APIs, screens, platform ops, migrations, new shared concepts, new mini-apps) is decided and implemented autonomously — the agent knows better on architecture and functionality, and a plan ends in implementation, not a request for permission; anything reaching the user's world (sending in their name or to third parties, acting for them, spending, deleting their data, publishing, credentials, the vault, data/, changes to how the user is messaged) is never autonomous — file it tier=proposal with a firm recommendation; a genuine security hole is fixed now and reported. The loop is the DECIDER on its own backlog (the user's Adopt/Dismiss buttons stay as override, but no item waits on them): on this run every OPEN backlog item gets a decision — adopt it via POST /api/self-evolve/backlog/{id}/adopt (platform-internal, the trash test still holds; the night drain builds it), dismiss it via POST /api/self-evolve/backlog/{id}/dismiss (evidence stale or wrong, reason recorded), or keep it a proposal strictly because it reaches the user's world; a proposal with no reply after 7 days is decided by the loop (world-reaching: prepare — draft, stage, schedule — never the outward act of send, spend, delete or publish, which stays the user's explicit go). Record the run via POST /api/self-evolve/runs/{id}/finish with what you found and what you changed. Send a message via POST /api/self-evolve/notify if and only if you made a change or have a concrete proposal — a run with nothing to say sends nothing.",
+      "description": "Nightly self-improvement: defects first, then learning, at most one focused verified root-cause change — or nothing",
+      "cron": "0 2 * * *",
+      "enabled": true
+    },
+    {
+      "name": "self-evolve-meta",
+      "type": "agent",
+      "prompt": "First GET /api/self-evolve/settings (token in env); if enabled is false, do nothing else — end this run. Then the weekly META run of the self-evolve loop — the loop reviewing itself. First read the 'Meta-run (weekly)' section of .qwen/skills/self-evolve/SKILL.md and follow it exactly. In short: start a run (POST /api/self-evolve/runs, trigger 'schedule'); review the fitness landscape (GET /api/self-evolve/metrics/latest?hours=168, GET /api/self-evolve/fitness?hours=168) and the loop's own track record (GET /api/self-evolve/runs?limit=14, /api/self-evolve/backlog, /api/self-evolve/repair/requests, /api/self-evolve/metrics/outcomes, /api/self-evolve/friction?limit=100). Then the meta pass: (0) backlog decisions — resolve any open proposal past its 7-day deadline per the Triage decider rule in the skill (world-reaching: prepare, never the outward act); (1) friction mining — a cluster of the same kind (3+ in 7 days) becomes a hypothesis through the trash test, tiered per the autonomy line; (2) procedure review — only with strong evidence that the loop's OWN procedure is the bottleneck, revise the skill text or loop settings (higher evidence bar than a normal run; platform-internal only, root cause only); (3) at most ONE meta change, verified end-to-end, committed to the agent's git repository (the commit message must end in provenance: run=<run_id>). The autonomy line and every guardrail in the skill apply unchanged. Notify only when there is something to say.",
+      "description": "Weekly meta-run: the loop reviews its own fitness and track record; friction becomes hypotheses; the procedure itself can evolve (higher evidence bar)",
+      "cron": "0 4 * * 0",
+      "enabled": true
+    }
+  ],
+  "subscribes": [],
+  "ui": {
+    "nav": {
+      "label": "Self-evolve",
+      "icon": "zap",
+      "group": "System",
+      "order": 3
+    },
+    "views": [
+      {
+        "id": "overview",
+        "title": "Overview",
+        "type": "stats",
+        "source": "/stats"
+      },
+      {
+        "id": "backlog",
+        "title": "Backlog",
+        "type": "table",
+        "source": "/backlog",
+        "rows": "items",
+        "description": "What the loop found but did not do. The loop is the decider on this list: it adopts, builds and dismisses on its own runs — Adopt and Dismiss are your override, not the decision path. Dismissing records the reason so the idea is never re-proposed.",
+        "columns": [
+          {
+            "field": "title",
+            "label": "Idea",
+            "width": "20rem",
+            "primary": true
+          },
+          {
+            "field": "tier",
+            "label": "Tier",
+            "format": "badge",
+            "width": "9rem"
+          },
+          {
+            "field": "why",
+            "label": "Why"
+          },
+          {
+            "field": "status",
+            "label": "Status",
+            "format": "badge",
+            "width": "9rem"
+          },
+          {
+            "field": "updated_at",
+            "label": "Updated",
+            "format": "relative",
+            "width": "9rem"
+          }
+        ],
+        "empty": "No open ideas. Entries only survive the trash test: real evidence, clear value, no trash.",
+        "actions": [
+          {
+            "label": "Adopt",
+            "method": "POST",
+            "path": "/backlog/{{id}}/adopt",
+            "style": "primary",
+            "confirm": "Start implementing this now? It runs through the agent queue and may take several minutes."
+          },
+          {
+            "label": "Dismiss",
+            "method": "POST",
+            "path": "/backlog/{{id}}/dismiss",
+            "overflow": true,
+            "confirm": "Dismiss this idea? It will not be re-proposed.",
+            "promptFor": "reason",
+            "promptHint": "Why dismiss this idea? (recorded, so it is never re-proposed)",
+            "body": {
+              "reason": "{{reason}}"
+            }
+          }
+        ]
+      },
+      {
+        "id": "outcomes",
+        "title": "Change outcomes",
+        "type": "table",
+        "source": "/metrics/outcomes?limit=50",
+        "rows": "outcomes",
+        "description": "Selection over time: each change declares the metric it should move; after a few days the measured delta decides, gated on the workload. If the workload regime moved, the verdict is 'confounded' — not blamed on the change — and is re-judged once it settles. Regressed changes are fixed forward, never auto-reverted.",
+        "columns": [
+          {
+            "field": "change_summary",
+            "label": "Change",
+            "primary": true
+          },
+          {
+            "field": "metric_name",
+            "label": "Metric",
+            "width": "10rem"
+          },
+          {
+            "field": "direction",
+            "label": "Expected",
+            "width": "7rem"
+          },
+          {
+            "field": "baseline_value",
+            "label": "Baseline",
+            "width": "8rem"
+          },
+          {
+            "field": "measured_value",
+            "label": "Measured",
+            "width": "8rem"
+          },
+          {
+            "field": "verdict",
+            "label": "Verdict",
+            "format": "badge",
+            "width": "9rem"
+          },
+          {
+            "field": "confounders",
+            "label": "Confounded by",
+            "width": "12rem"
+          },
+          {
+            "field": "decided_at",
+            "label": "Decided",
+            "format": "relative",
+            "width": "9rem"
+          }
+        ],
+        "empty": "No declared outcomes yet — runs that make a change declare which metric it should move."
+      },
+      {
+        "id": "friction",
+        "title": "Friction log",
+        "type": "table",
+        "source": "/friction?limit=50",
+        "rows": "events",
+        "description": "Logged moments where you had to step in — a correction, a re-ask, a manual fallback. The loop's highest-density signal: recurring friction is what new capabilities grow from.",
+        "columns": [
+          {
+            "field": "kind",
+            "label": "Kind",
+            "format": "badge",
+            "width": "9rem"
+          },
+          {
+            "field": "context",
+            "label": "Context"
+          },
+          {
+            "field": "source",
+            "label": "Source",
+            "width": "12rem"
+          },
+          {
+            "field": "created_at",
+            "label": "When",
+            "format": "relative",
+            "width": "9rem"
+          }
+        ],
+        "empty": "No friction logged yet — every one of these is a signal the loop can act on."
+      },
+      {
+        "id": "fitness",
+        "title": "Fitness landscape",
+        "type": "table",
+        "source": "/metrics/latest?hours=24",
+        "rows": "metrics",
+        "description": "What 'better' means, measured — sampled every 30 minutes. Every metric here is lower-is-better; '24h ago' shows the trend.",
+        "columns": [
+          {
+            "field": "name",
+            "label": "Metric",
+            "primary": true
+          },
+          {
+            "field": "value",
+            "label": "Now",
+            "width": "7rem",
+            "sortable": true
+          },
+          {
+            "field": "value_prev",
+            "label": "24h ago",
+            "width": "8rem"
+          },
+          {
+            "field": "sampled_at",
+            "label": "Sampled",
+            "format": "relative",
+            "width": "9rem"
+          }
+        ],
+        "empty": "No samples yet — the first lands within 30 minutes (System → Jobs: self-evolve-metrics-tick)."
+      },
+      {
+        "id": "runs",
+        "title": "Runs",
+        "type": "table",
+        "source": "/runs?limit=40",
+        "rows": "runs",
+        "description": "One row per run. An empty Changed column on a healthy run is the expected state — the loop is allowed to do nothing.",
+        "columns": [
+          {
+            "field": "started_at",
+            "label": "When",
+            "format": "relative",
+            "width": "9rem",
+            "primary": true,
+            "sortable": true
+          },
+          {
+            "field": "status",
+            "label": "Status",
+            "format": "badge",
+            "width": "7rem"
+          },
+          {
+            "field": "trigger",
+            "label": "Trigger",
+            "width": "8rem"
+          },
+          {
+            "field": "findings",
+            "label": "Found"
+          },
+          {
+            "field": "changes",
+            "label": "Changed"
+          },
+          {
+            "field": "message_sent",
+            "label": "Messaged",
+            "format": "badge",
+            "width": "8rem"
+          }
+        ],
+        "empty": "No runs yet — the first fires tonight at 02:00 (System → Jobs: self-evolve-nightly)."
+      },
+      {
+        "id": "repairs",
+        "title": "Repairs",
+        "type": "table",
+        "source": "/repair/requests",
+        "rows": "requests",
+        "refreshMs": 15000,
+        "description": "Terminal failures the loop reacted to. Several identical failures become one row (Seen), one repair turn runs at a time, a row gets at most two turns and then goes to the Backlog. 'Expected' means the error is the system working as designed.",
+        "columns": [
+          {
+            "field": "kind",
+            "label": "Kind",
+            "width": "11rem",
+            "primary": true
+          },
+          {
+            "field": "target_id",
+            "label": "Target",
+            "width": "7rem"
+          },
+          {
+            "field": "error",
+            "label": "Error"
+          },
+          {
+            "field": "state",
+            "label": "State",
+            "format": "badge",
+            "width": "9rem"
+          },
+          {
+            "field": "count",
+            "label": "Seen",
+            "width": "6rem"
+          },
+          {
+            "field": "first_seen",
+            "label": "First",
+            "format": "relative",
+            "width": "9rem"
+          }
+        ],
+        "empty": "No terminal failures waiting for a repair.",
+        "actions": [
+          {
+            "label": "Not worth fixing",
+            "method": "POST",
+            "path": "/repair/requests/{{id}}/dismiss",
+            "overflow": true,
+            "confirm": "Mark this repair as expected? It will not be re-triggered for this signature.",
+            "promptFor": "reason",
+            "promptHint": "Why is this not worth fixing? (recorded)",
+            "body": {
+              "reason": "{{reason}}"
+            }
+          }
+        ]
+      },
+      {
+        "id": "guardrails",
+        "title": "Guardrail alerts",
+        "type": "table",
+        "source": "/guardrail/alerts?limit=20",
+        "rows": "alerts",
+        "description": "System-level watch on the core reliability metrics across every change window. An alert names the metric, the move, and the changes made in that period — a signal to investigate, not an automatic revert.",
+        "columns": [
+          {
+            "field": "metric_name",
+            "label": "Metric",
+            "primary": true
+          },
+          {
+            "field": "from_value",
+            "label": "From",
+            "width": "7rem"
+          },
+          {
+            "field": "to_value",
+            "label": "To",
+            "width": "7rem"
+          },
+          {
+            "field": "changes_in_window",
+            "label": "Changes in window"
+          },
+          {
+            "field": "raised_at",
+            "label": "Raised",
+            "format": "relative",
+            "width": "9rem"
+          }
+        ],
+        "empty": "No guardrail alerts — the core reliability metrics are holding their window.",
+        "actions": [
+          {
+            "label": "Acknowledge",
+            "method": "POST",
+            "path": "/guardrail/alerts/{{id}}/acknowledge"
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Loop settings",
+        "type": "form",
+        "description": "The loop's own knobs, changeable at runtime — the nightly run, the night drain, the Adopt flow and the notify guard all read them live. Saved changes apply immediately, no reload, no restart.",
+        "submit": {
+          "method": "PUT",
+          "path": "/settings",
+          "label": "Save"
+        },
+        "fields": [
+          {
+            "name": "enabled",
+            "label": "Self-evolve enabled",
+            "type": "checkbox",
+            "default": false,
+            "placeholder": "The package ships disabled; the nightly and meta runs no-op until this is on"
+          },
+          {
+            "name": "inflight_stale_hours",
+            "label": "In-flight reclaim (hours)",
+            "type": "number",
+            "default": 12,
+            "placeholder": "An adopted item in-flight longer than this is reclaimed (1-168)"
+          },
+          {
+            "name": "implement_timeout_sec",
+            "label": "Implement silence budget (sec)",
+            "type": "number",
+            "default": 1800,
+            "placeholder": "An implementation or repair turn must finish within this window (60-7200)"
+          },
+          {
+            "name": "drain_cutoff_hour",
+            "label": "Drain cutoff (hour, server local)",
+            "type": "number",
+            "default": 5,
+            "placeholder": "The night drain stops starting new items at this hour (0-23)"
+          },
+          {
+            "name": "drain_max_per_night",
+            "label": "Drain max items per night",
+            "type": "number",
+            "default": 12,
+            "placeholder": "Autonomous backlog items started per night, max (1-12)"
+          },
+          {
+            "name": "notify_max_per_hour",
+            "label": "Max notifications per hour",
+            "type": "number",
+            "default": 3,
+            "placeholder": "1-12"
+          },
+          {
+            "name": "notify_max_chars",
+            "label": "Max message length (chars)",
+            "type": "number",
+            "default": 1500,
+            "placeholder": "200-4000"
+          },
+          {
+            "name": "outcome_measure_days",
+            "label": "Outcome measurement window (days)",
+            "type": "number",
+            "default": 3,
+            "placeholder": "A change is judged after this many days (1-14)"
+          },
+          {
+            "name": "regression_tolerance",
+            "label": "Regression tolerance (multiplier)",
+            "type": "number",
+            "default": 1.0,
+            "placeholder": "Past baseline x this in the wrong direction counts (1.0-3.0)"
+          }
+        ]
+      }
+    ]
+  }
+}
