@@ -104,10 +104,12 @@ Committed in this repo (see `git log`):
 ## Queue (FIFO, one sub-agent at a time)
 
 1. **continente** (connector) — package 6/6 files done + validated on a
-   scratch agent; remaining: test part 2 (spec in
+   scratch agent; **live e2e PASS on the test dash** (health/status,
+   session store→probe→clear round-trip against the real site's 302
+   probe, secret hygiene, catalog). Remaining: test part 2 (spec in
    `/tmp/continente-handoff.md`) + resolve 1 failing parser test
    (`parse_order_date("17 Augosto 25")`), then move to
-   `connectors/continente/` and commit. Parent does the live e2e.
+   `connectors/continente/` and commit.
 2. **movienight** — brief at `/tmp/movienight-port-brief.md`.
 3. **sdk-ts** — tests + dist build, scope `sdk-ts/` only.
 
@@ -170,7 +172,7 @@ Committed in this repo (see `git log`):
   never leave `__pycache__` in `src/agentboom/templates/` (py_compile
   writes `.pyc` even with `PYTHONDONTWRITEBYTECODE=1`).
 - **E2E harness**: test agent at `/tmp/ab-test-dash` (SQLite), gateway
-  `env -u DATABASE_URI VAULT_KEY=<32 hex> PLATFORM_TOKEN=testtoken123
+  `env -u DATABASE_URI VAULT_KEY=<64 hex = 32 bytes, i.e. `openssl rand -hex 32` — the vault mini-app requires exactly 32 bytes; a shorter key leaves the vault silently disabled> PLATFORM_TOKEN=testtoken123
   PLATFORM_INTERNAL_URL=http://127.0.0.1:8130 DATA_DIR=/tmp/ab-test-dash/
   data MIGRATIONS_DIR=/tmp/ab-test-dash/platform/migrations uvicorn
   api_gateway:app --app-dir platform --port 8130`; re-copy package files
