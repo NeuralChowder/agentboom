@@ -1,0 +1,39 @@
+{
+  "name": "mfa-relay",
+  "description": "Verification codes forwarded at receive — sender-verified, idempotent, configurable. Off until configured.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "subscribes": ["email.received"],
+  "ui": {
+    "nav": {"label": "MFA Relay", "icon": "key", "group": "System", "order": 45},
+    "views": [
+      {"id": "health", "title": "Status", "type": "stats", "source": "/health"},
+      {"id": "decisions", "title": "Decisions", "type": "table",
+       "source": "/forwards", "rows": "forwards",
+       "columns": [
+         {"key": "from_email", "label": "From"},
+         {"key": "code", "label": "Code"},
+         {"key": "recipient", "label": "To"},
+         {"key": "action", "label": "Action"},
+         {"key": "reason", "label": "Reason"},
+         {"key": "created_at", "label": "When"}
+       ],
+       "empty": "No messages have reached the relay yet."},
+      {"id": "settings", "title": "Settings", "type": "form",
+       "fields": [
+         {"name": "enabled", "label": "Relay enabled", "type": "checkbox"},
+         {"name": "sender_email", "label": "Code sender (exact address)", "type": "text",
+          "placeholder": "noreply@example-bank.com"},
+         {"name": "subject_contains", "label": "Subject must contain", "type": "text",
+          "placeholder": "verification code"},
+         {"name": "account_email", "label": "Send from this mailbox", "type": "text"},
+         {"name": "recipient", "label": "Forward to (exact address)", "type": "text"},
+         {"name": "require_auth_pass", "label": "Require SPF/DKIM/DMARC pass", "type": "checkbox"},
+         {"name": "forward_subject", "label": "Forwarded subject", "type": "text"},
+         {"name": "forward_template", "label": "Forwarded body ({code} is replaced)", "type": "textarea"}
+       ],
+       "submit": {"method": "PUT", "path": "/settings", "label": "Save settings"}}
+    ]
+  }
+}

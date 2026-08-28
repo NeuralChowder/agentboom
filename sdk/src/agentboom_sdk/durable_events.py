@@ -47,6 +47,10 @@ CLAIM_WINDOW_SEC = 45
 MAX_BACKOFF_SEC = 300
 
 INTERNAL_URL = os.environ.get("PLATFORM_INTERNAL_URL", "http://127.0.0.1:8000")
+# Deliveries are ordinary HTTP calls, and every non-public gateway route
+# demands the platform token — so in-process subscribers (gateway endpoints)
+# are unreachable without it.
+PLATFORM_TOKEN = os.environ.get("PLATFORM_TOKEN", "")
 
 _bg_tasks: set = set()
 
@@ -323,7 +327,11 @@ async def drain(limit: int = 100) -> Dict[str, int]:
 
     semaphore = asyncio.Semaphore(MAX_PARALLEL_DELIVERIES)
 
-    async with httpx.AsyncClient(timeout=DELIVERY_TIMEOUT_SEC) as client:
+    headers = {}
+    if PLATFORM_TOKEN:
+        headers["Authorization"] = f"Bearer {PLATFORM_TOKEN}"
+    async with httpx.AsyncClient(timeout=DELIVERY_TIMEOUT_SEC,
+                                 headers=headers or None) as client:
         async def guarded(delivery: dict) -> None:
             async with semaphore:
                 await _deliver_one(delivery, client)

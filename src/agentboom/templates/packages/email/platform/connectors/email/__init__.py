@@ -174,6 +174,13 @@ def _parse(uid: str, raw: bytes, folder: str) -> dict:
         # conversation. Empty when the message starts its own thread.
         "in_reply_to": _decode(msg.get("In-Reply-To")),
         "references": _decode(msg.get("References"))[:1000],
+        # The receiving MX's own SPF/DKIM/DMARC verdict, stored raw at
+        # ingest: consumers (sender_check, mfa-relay) read the same stored
+        # evidence instead of re-deriving it. Multiple lines when several
+        # hops recorded their own.
+        "auth_results": "\n".join(
+            _decode(v) for v in msg.get_all("Authentication-Results") or []
+        ) or None,
         "body_text": _body_text(msg),
     }
 

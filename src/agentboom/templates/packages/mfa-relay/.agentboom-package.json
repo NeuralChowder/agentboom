@@ -1,0 +1,15 @@
+{
+  "name": "mfa-relay",
+  "description": "Time-critical verification codes, forwarded at receive: deterministic (no LLM in the path), sender-verified (SPF/DKIM/DMARC via sender_check), idempotent per message, configurable at runtime. Off and inert until configured.",
+  "kind": "addon",
+  "icon": "🔑",
+  "requires": ["email", "events"],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 012_mfa_relay.sql, hot-loads the app, registers the email.received subscription).",
+    "Configure it: PUT /api/mfa-relay/settings with {\"enabled\": true, \"sender_email\": \"who-sends-codes@example.com\", \"subject_contains\": \"verification code\", \"account_email\": \"your-mailbox@example.com\", \"recipient\": \"who-receives@example.com\"}.",
+    "Test it before trusting it: POST /api/mfa-relay/test with {\"email_id\": <a stored code message>} — a dry run that returns exactly what a live message would produce, without sending.",
+    "Watch: GET /api/mfa-relay/forwards shows every decision (forwarded / withheld / ignored) with the reason."
+  ]
+}
