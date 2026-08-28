@@ -274,8 +274,8 @@ agentboom self-update --apply    # actually run the installer
 ```
 
 ```json
-{"ok": true, "current": "0.7.0", "latest": "0.8.0", "update_available": true,
+{"ok": true, "current": "0.8.0", "latest": "0.8.0", "update_available": true,
  "wheel_url": "https://.../agentboom-0.8.0-py3-none-any.whl",
  "command": "pipx install --force agentboom @ https://...",
- "message": "update available: 0.7.0 -> 0.8.0 ..."}
+ "message": "update available: 0.8.0 -> 0.9.0 ..."}
 ```

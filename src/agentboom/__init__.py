@@ -4,4 +4,4 @@ Pure Python stdlib. No runtime dependencies, so agents and CI can run it
 anywhere python3 >= 3.10 exists.
 """
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"

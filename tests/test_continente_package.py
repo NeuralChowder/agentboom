@@ -25,7 +25,7 @@ os.environ.pop("DATABASE_URI", None)
 os.environ["VAULT_KEY"] = "ab" * 32  # test key: 32 hex bytes
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-PKG_PLATFORM = (REPO_ROOT / "src/agentboom/templates/packages"
+PKG_PLATFORM = (REPO_ROOT / "src/agentboom/templates/connectors"
                 / "continente/platform")
 VAULT_MIGRATIONS = (REPO_ROOT / "src/agentboom/templates/packages"
                     / "vault/platform/migrations")
