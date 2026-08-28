@@ -28,6 +28,9 @@ class InitTests(AgentTestCase):
         self.assertIn(".qwen-docker/skills/web-search/SKILL.md", registry["managed"])
 
     def test_no_unrendered_placeholders(self):
+        # The same strict pattern the renderer enforces. A bare "{{" scan
+        # would false-positive on JSX (style={{ ... }}) in the frontend.
+        from agentboom.render import PLACEHOLDER
         leftovers = []
         for path in self.agent_dir.rglob("*"):
             if path.is_file() and path.name not in (".agentboom.json",):
@@ -35,9 +38,21 @@ class InitTests(AgentTestCase):
                     text = path.read_text(encoding="utf-8")
                 except UnicodeDecodeError:
                     continue
-                if "{{" in text:
+                if PLACEHOLDER.search(text):
                     leftovers.append(str(path))
         self.assertEqual(leftovers, [])
+
+    def test_dashboard_is_scaffolded(self):
+        for rel in ("package.json", "dashboard/app/page.tsx",
+                    "dashboard/Dockerfile", "dashboard/entrypoint.sh",
+                    "ui/src/index.ts", "ui/src/client.ts"):
+            self.assertTrue((self.agent_dir / rel).is_file(),
+                            f"{rel} should exist")
+        compose = (self.agent_dir / "docker-compose.yml").read_text()
+        self.assertIn("dashboard:", compose)
+        self.assertIn("dashboard/Dockerfile", compose)
+        workspace = json.loads((self.agent_dir / "package.json").read_text())
+        self.assertEqual(workspace["workspaces"], ["ui", "dashboard"])
 
     def test_executables_are_executable(self):
         import os

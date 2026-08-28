@@ -15,18 +15,22 @@ docker compose logs -f qwen-agent
 ```
 
 - Agent HTTP API: `http://127.0.0.1:{{PORT_AGENT}}`
+- Dashboard: `http://127.0.0.1:{{PORT_DASHBOARD}}`
 - Platform gateway: `http://127.0.0.1:{{PORT_PLATFORM}}`
   (catalog: `/api/catalog`, dashboard-less API docs: `/docs`)
 
 Ports are loopback-only by default. Expose externally via a reverse proxy
-with an allowlist — the platform has no end-user auth of its own.
+with an allowlist — the gateway's hard public boundary (bearer token on
+every non-public route, `/public/*` the only open surface) is the real
+protection.
 
 ## Structure
 
 ```
 ├── Dockerfile              # agent container (Qwen Code + tools)
-├── docker-compose.yml      # qwen-agent + endpoint-platform
+├── docker-compose.yml      # qwen-agent + endpoint-platform + dashboard
 ├── entrypoint.sh           # agent container boot (skill deps, prune, qwen serve)
+├── package.json            # frontend workspaces (ui + dashboard)
 ├── .env.example            # secrets template (never commit .env)
 ├── .qwen-docker/           # the agent's home (mounted as ~/.qwen in-container)
 │   ├── AGENTS.md           # ★ the agent's operating manual
@@ -34,6 +38,8 @@ with an allowlist — the platform has no end-user auth of its own.
 │   ├── agents/             # subagent definitions
 │   ├── skills/             # skills (SKILL.md + scripts)
 │   └── memories/           # persistent memory index
+├── ui/                     # design system + manifest renderers (@agentboom/ui)
+├── dashboard/              # Next.js dashboard (catalog-driven)
 └── platform/               # mini-app platform (see platform/README.md)
     ├── api_gateway.py      # hot-reload mini-app host
     ├── migrations/         # numbered SQL migrations

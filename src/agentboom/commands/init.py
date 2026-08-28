@@ -62,6 +62,7 @@ def run(args) -> dict:
         "AGENT_DESCRIPTION": (args.description or DEFAULT_DESCRIPTION).strip(),
         "PORT_AGENT": str(args.port_agent),
         "PORT_PLATFORM": str(args.port_platform),
+        "PORT_DASHBOARD": "3000",
         "BASE_VERSION": __version__,
     }
 

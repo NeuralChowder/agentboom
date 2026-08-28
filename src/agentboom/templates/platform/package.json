@@ -1,0 +1,14 @@
+{
+  "name": "{{AGENT_NAME}}",
+  "private": true,
+  "version": "0.1.0",
+  "description": "{{AGENT_TITLE}} — frontend workspace (ui + dashboard). Python tooling lives in platform/.",
+  "workspaces": [
+    "ui",
+    "dashboard"
+  ],
+  "scripts": {
+    "build": "npm run build -w @agentboom/ui && npm run build -w @agentboom/dashboard",
+    "dev:dashboard": "npm run dev -w @agentboom/dashboard"
+  }
+}

@@ -8,6 +8,7 @@ const nextConfig = {
   async rewrites() {
     return [
       { source: "/api/:path*", destination: `${PLATFORM_URL}/api/:path*` },
+      { source: "/public/:path*", destination: `${PLATFORM_URL}/public/:path*` },
       { source: "/admin/:path*", destination: `${PLATFORM_URL}/admin/:path*` },
       { source: "/health", destination: `${PLATFORM_URL}/health` },
     ];

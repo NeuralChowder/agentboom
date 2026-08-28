@@ -2,10 +2,12 @@
 #
 #   qwen-agent          Qwen Code daemon (`qwen serve`) — the brain
 #   endpoint-platform   FastAPI gateway + mini-apps + scheduler — the body
+#   dashboard           Next.js UI (catalog-driven; renders what apps declare)
 #
-# Ports are published on 127.0.0.1 by default: the platform has no
-# end-user auth story of its own. Expose externally via a reverse proxy
-# with an allowlist, not by widening these bindings.
+# Ports are published on 127.0.0.1 by default: the dashboard is a thin proxy —
+# the gateway's hard public boundary (bearer token on every non-public route)
+# is the real protection. Expose externally via a reverse proxy with an
+# allowlist, not by widening these bindings.
 name: {{AGENT_NAME}}
 
 services:
@@ -75,6 +77,32 @@ services:
       # can read/update the user's global config. Keep this loopback-only.
       - ./.qwen-docker:/agent-home
       - agent-data:/data
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    restart: unless-stopped
+    environment:
+      - AGENTBOOM_PLATFORM_URL=http://endpoint-platform:8000
+      - NEXT_PUBLIC_PLATFORM_TOKEN=${PLATFORM_TOKEN}
+    ports:
+      - "127.0.0.1:${PORT_DASHBOARD:-3000}:3000"
+    volumes:
+      # Bind-mounted for hot growth: edit the frontend, restart the service,
+      # it is rebuilt from the current source at container start.
+      - ./ui:/app/ui
+      - ./dashboard:/app/dashboard
+    depends_on:
+      - endpoint-platform
+    healthcheck:
+      # The image ships neither curl nor wget — node is guaranteed present.
+      # 127.0.0.1 rather than localhost: next-server binds IPv4 only.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
 
 volumes:
   agent-data:

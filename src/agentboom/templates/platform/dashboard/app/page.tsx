@@ -10,8 +10,14 @@ import {
   type MiniAppEntry,
 } from "@agentboom/ui";
 
-// Same-origin: /api/* is proxied to the platform gateway by next.config.
-const client = new PlatformClient({ baseUrl: "" });
+// Same-origin: /api/* and /public/* are proxied to the platform gateway by
+// next.config. The gateway's hard public boundary requires the bearer token
+// on every non-public call, so the client carries it (inlined at build time
+// from NEXT_PUBLIC_PLATFORM_TOKEN).
+const client = new PlatformClient({
+  baseUrl: "",
+  token: process.env.NEXT_PUBLIC_PLATFORM_TOKEN ?? "",
+});
 
 export default function DashboardPage() {
   const [apps, setApps] = useState<MiniAppEntry[]>([]);

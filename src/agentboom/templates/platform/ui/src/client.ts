@@ -10,7 +10,13 @@ import type { MiniAppEntry } from "./manifest.js";
 export interface PlatformClientOptions {
   /** Base URL of the platform gateway, e.g. "http://127.0.0.1:8000". */
   baseUrl: string;
-  /** Optional admin credentials for /admin/* endpoints. */
+  /**
+   * Bearer token for the gateway API. Every non-public route requires it —
+   * the hard public boundary is enforced in the gateway and cannot be
+   * weakened by configuration.
+   */
+  token?: string;
+  /** Optional admin credentials for /admin/* endpoints (legacy). */
   admin?: { username: string; password: string };
   /** Optional fetch implementation (defaults to global fetch). */
   fetchImpl?: typeof fetch;
@@ -21,7 +27,9 @@ export class PlatformClient {
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
     const h: Record<string, string> = { ...extra };
-    if (this.opts.admin) {
+    if (this.opts.token) {
+      h["authorization"] = `Bearer ${this.opts.token}`;
+    } else if (this.opts.admin) {
       const { username, password } = this.opts.admin;
       if (typeof btoa !== "undefined") {
         h["authorization"] = `Basic ${btoa(`${username}:${password}`)}`;
