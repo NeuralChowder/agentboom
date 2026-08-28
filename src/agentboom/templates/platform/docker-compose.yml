@@ -23,6 +23,8 @@ services:
     environment:
       - QWEN_SERVER_TOKEN=${QWEN_SERVER_TOKEN}
       - PLATFORM_API=http://endpoint-platform:8000
+      - PLATFORM_INTERNAL_URL=http://endpoint-platform:8000
+      - PLATFORM_TOKEN=${PLATFORM_TOKEN}
       - QWEN_SERVE_ARGS=${QWEN_SERVE_ARGS:-}
     ports:
       - "127.0.0.1:${PORT_AGENT:-4170}:4170"
@@ -54,6 +56,8 @@ services:
       - DATA_DIR=/data
       - AGENT_HOME=/agent-home
       - PLATFORM_ADMIN_PASSWORD=${PLATFORM_ADMIN_PASSWORD}
+      - PLATFORM_TOKEN=${PLATFORM_TOKEN}
+      - PLATFORM_INTERNAL_URL=http://127.0.0.1:8000
       - QWEN_AGENT_URL=http://qwen-agent:4170
       - QWEN_SERVER_TOKEN=${QWEN_SERVER_TOKEN}
       - LLM_BASE_URL=${LLM_BASE_URL:-}

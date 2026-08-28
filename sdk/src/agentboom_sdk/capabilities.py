@@ -32,8 +32,15 @@ log = logging.getLogger("agentboom_sdk.capabilities")
 
 PLATFORM_INTERNAL_URL = os.environ.get(
     "PLATFORM_INTERNAL_URL", "http://127.0.0.1:8000")
+PLATFORM_TOKEN = os.environ.get("PLATFORM_TOKEN", "")
 _CACHE_TTL_SEC = float(os.environ.get("CAPABILITIES_CACHE_SEC", "60"))
 _TIMEOUT = float(os.environ.get("CAPABILITY_TIMEOUT_SEC", "30"))
+
+
+def _headers() -> dict:
+    """Gateway auth: the platform boundary is credentials-or-401."""
+    return ({"Authorization": f"Bearer {PLATFORM_TOKEN}"}
+            if PLATFORM_TOKEN else {})
 
 _cache: Dict[str, Any] = {"at": 0.0, "capabilities": {}}
 
@@ -54,7 +61,9 @@ async def registry(refresh: bool = False) -> Dict[str, dict]:
         return _cache["capabilities"]
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{PLATFORM_INTERNAL_URL}/api/capabilities")
+            resp = await client.get(
+                f"{PLATFORM_INTERNAL_URL}/api/capabilities",
+                headers=_headers())
     except httpx.HTTPError as exc:
         if _cache["capabilities"]:
             return _cache["capabilities"]  # stale beats dead
@@ -94,7 +103,8 @@ async def call(name: str, payload: Optional[dict] = None, *,
     method = record.get("method", "POST").upper()
     try:
         async with httpx.AsyncClient(
-                timeout=timeout or _TIMEOUT) as client:
+                timeout=timeout or _TIMEOUT,
+                headers=_headers()) as client:
             if method == "GET":
                 resp = await client.get(url, params=payload or {})
             else:

@@ -39,6 +39,7 @@ from starlette.routing import Mount
 
 from agentboom_sdk import db, events
 from agentboom_sdk.log import get_logger
+from agentboom_sdk.security import public_app_context
 
 log = get_logger("api_gateway")
 
@@ -50,6 +51,21 @@ APP_ROOTS = {
 RELOAD_POLL_SEC = float(os.environ.get("RELOAD_POLL_SEC", "2"))
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "")
+
+# Bearer token for every non-public route. This boundary is a hard rule
+# in code, not a configuration: there is no flag, env var, or user
+# request that makes a route outside /public/* reachable without
+# credentials. Only /public/* (deliberately exposed pages and APIs) and
+# the /health probes are open. Fail-closed: with no token set, the
+# gateway runs, but nothing outside the public surface answers.
+PLATFORM_TOKEN = os.environ.get("PLATFORM_TOKEN", "")
+
+# `public_app_context` (agentboom_sdk.security) is True for the
+# duration of any request under /public/*, so code that runs in a
+# public context (vault decryption, secret access) can refuse
+# deterministically. Public apps are mounted ONLY under
+# /public/api/<name>/ — the gateway picks the prefix from the app's
+# root; an app cannot choose to be public.
 
 # Loaded app registry: name -> {root, manifest, mounted, error}
 LOADS: Dict[str, Dict[str, Any]] = {}
@@ -70,7 +86,8 @@ SIDECARS: Dict[str, subprocess.Popen] = {}
 # Env passed through to Node sidecars (secrets included only where the
 # SDK twins need them — same trust boundary as the in-process apps).
 _SIDECAR_ENV_PASSTHROUGH = (
-    "DATA_DIR", "PLATFORM_INTERNAL_URL", "QWEN_AGENT_URL", "QWEN_SERVER_TOKEN",
+    "DATA_DIR", "PLATFORM_INTERNAL_URL", "PLATFORM_TOKEN",
+    "QWEN_AGENT_URL", "QWEN_SERVER_TOKEN",
     "LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL", "LLM_TIMEOUT_SEC",
     "DATABASE_URI", "MIGRATIONS_DIR",
 )
@@ -284,6 +301,11 @@ def _load_app(root_key: str, app_dir: Path) -> Dict[str, Any]:
         "uses": manifest.get("uses", []),
         "missing_capabilities": [],
     }
+    # The gateway — not the app — decides where an app is served. Apps
+    # in public-apps/ are exposed ONLY under /public/api/; everything
+    # else stays behind the token boundary.
+    mount_prefix = (f"/public/api/{app_name}" if root_key == "public-apps"
+                    else f"/api/{app_name}")
     language = entry["language"]
     try:
         if language == "node":
@@ -294,8 +316,8 @@ def _load_app(root_key: str, app_dir: Path) -> Dict[str, Any]:
                 entry["error"] = "language 'node' but no main.mjs/main.js"
                 return entry
             port = _spawn_node_sidecar(app_name, app_dir, main_file)
-            _unmount(f"/api/{app_name}")
-            app.mount(f"/api/{app_name}", _SidecarProxy(port))
+            _unmount(mount_prefix)
+            app.mount(mount_prefix, _SidecarProxy(port))
             entry["mounted"] = True
             entry["sidecar_port"] = port
             # Endpoints are discovered over HTTP by the caller side —
@@ -315,9 +337,9 @@ def _load_app(root_key: str, app_dir: Path) -> Dict[str, Any]:
         sub = FastAPI(title=f"{manifest.get('name', app_name)}",
                       docs_url=None, redoc_url=None, openapi_url=None)
         sub.include_router(router)
-        _unmount(f"/api/{app_name}")
+        _unmount(mount_prefix)
         _stop_sidecar(app_name)  # a python remount replaces any sidecar
-        app.mount(f"/api/{app_name}", sub)
+        app.mount(mount_prefix, sub)
         entry["mounted"] = True
         entry["endpoints"] = _endpoint_list(router)
         entry["module"] = module
@@ -497,6 +519,57 @@ app = FastAPI(title="{{AGENT_TITLE}} platform", lifespan=lifespan,
               docs_url="/docs", openapi_url="/openapi.json")
 
 
+class _AuthBoundary:
+    """Pure-ASGI auth: every route needs credentials except /public/*.
+
+    The path prefix IS the policy — deterministic and unweakenable from
+    outside this file:
+      /public/...          open; the single public surface, and the only
+                           place an app may be exposed. Runs with
+                           public_app_context set.
+      /health, /health/db  open ops probes (no data).
+      everything else      requires `Authorization: Bearer $PLATFORM_TOKEN`
+                           before any route handler or mounted mini-app
+                           sees the request.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        if path == "/public" or path.startswith("/public/"):
+            token = public_app_context.set(True)
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                public_app_context.reset(token)
+            return
+        if path in ("/health", "/health/db"):
+            await self.app(scope, receive, send)
+            return
+        supplied = next((v for k, v in scope.get("headers", [])
+                         if k == b"authorization"), b"")
+        if PLATFORM_TOKEN and hmac.compare_digest(
+                supplied, f"Bearer {PLATFORM_TOKEN}".encode()):
+            await self.app(scope, receive, send)
+            return
+        response = Response(
+            status_code=401, media_type="application/json",
+            content=json.dumps({
+                "error": "authentication required",
+                "hint": "Authorization: Bearer $PLATFORM_TOKEN",
+            }),
+            headers={"WWW-Authenticate": "Bearer"})
+        await response(scope, receive, send)
+
+
+app.add_middleware(_AuthBoundary)
+
+
 # ── health & discovery ──────────────────────────────────────────────────
 
 @app.get("/health")
@@ -528,7 +601,9 @@ def _catalog_payload() -> Dict[str, Any]:
             "status": manifest.get("status", ""),
             "loaded": entry["mounted"],
             "error": entry["error"].splitlines()[-1] if entry["error"] else None,
-            "base_url": f"/api/{name}",
+            "base_url": (f"/public/api/{name}"
+                         if entry["root"] == "public-apps"
+                         else f"/api/{name}"),
             "endpoints": entry["endpoints"],
             "jobs": manifest.get("jobs", []),
             "subscribes": manifest.get("subscribes", []),

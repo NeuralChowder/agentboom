@@ -35,6 +35,7 @@ FAILURE_BACKOFF_CAP_SEC = 3600
 AGENT_JOB_TIMEOUT = float(os.environ.get("AGENT_JOB_TIMEOUT_SEC", "300"))
 HTTP_JOB_TIMEOUT = float(os.environ.get("HTTP_JOB_TIMEOUT_SEC", "300"))
 INTERNAL_URL = os.environ.get("PLATFORM_INTERNAL_URL", "http://127.0.0.1:8000")
+PLATFORM_TOKEN = os.environ.get("PLATFORM_TOKEN", "")
 # Cron matching happens in this timezone (DST-aware); stored times are UTC.
 SCHEDULER_TZ = os.environ.get("SCHEDULER_TZ", "UTC")
 
@@ -211,7 +212,10 @@ class Scheduler:
                             error = "agent turn returned no answer"
                     else:
                         url = f"{INTERNAL_URL}/api/{job['app']}/{job.get('target') or ''}".rstrip("/")
-                        async with httpx.AsyncClient(timeout=HTTP_JOB_TIMEOUT) as client:
+                        headers = ({"Authorization": f"Bearer {PLATFORM_TOKEN}"}
+                                   if PLATFORM_TOKEN else {})
+                        async with httpx.AsyncClient(timeout=HTTP_JOB_TIMEOUT,
+                                                     headers=headers) as client:
                             resp = await client.post(url)
                         if resp.status_code >= 400:
                             error = f"HTTP {resp.status_code}: {resp.text[:200]}"
