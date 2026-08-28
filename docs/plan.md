@@ -55,9 +55,11 @@ status, decisions, queue, and the rules every piece of work must respect.
    delivery, dedupe keys, backoff, dead-letter, and deliveries carry the
    platform Bearer token.
 5. **Work discipline.** Work is broken into small verified pieces: one
-   piece = one commit, suite green, leak grep clean. Sub-agents run ONE
-   AT A TIME (shared local LLM/GPU with the owner's sessions); paused
-   sub-agents leave a handoff file so any agent can continue.
+   piece = one commit, suite green, leak grep clean. Sub-agents parallelism
+   set by user based on LLM load (default modest ≤3-4); watch for timeout
+   symptoms — bloated context (>1M tokens) means launch fresh with a
+   handoff brief instead of resuming. Paused agents leave a handoff file
+   so any agent can continue.
 
 ## Registry layout (decided 2026-08-28)
 
@@ -94,14 +96,20 @@ Committed in this repo (see `git log`):
   dashboard proxy.
 - `agentboom init` persists chosen host ports into `.env.example`.
 - `connectors/` registry tree + recursive discovery (3ab6ee4).
+- **self-evolve** — 8 flat tables (migrations 019), 29 routes, 6 jobs
+  (4 ticks + 2 agent jobs), settings default OFF, repair loop, metrics,
+  guardrails, 701-line test module (19 tests). Full suite 224/224.
+  E2e: mounts disabled-by-default, /runs 409 guard, settings seed,
+  6 jobs registered in catalog. 2 defects fixed (queues_stalled bindings,
+  _implement drain priority). (commit 03cae7c)
 
 ## In flight
 
-- **self-evolve** — all package files complete (8 flat tables, 29 routes,
-  2 agent jobs, settings default OFF, nightly + weekly-meta jobs, repair
-  loop, metrics, guardrails); test file being written by a sub-agent.
+- **continente** tests part 2 + 1 parser fix (agent running).
+- **movienight** fresh port (agent running).
+- **sdk-ts** tests + dist build (agent running).
 
-## Queue (FIFO, one sub-agent at a time)
+## Queue (FIFO, parallel agents)
 
 1. **continente** (connector) — package 6/6 files done + validated on a
    scratch agent; **live e2e PASS on the test dash** (health/status,
