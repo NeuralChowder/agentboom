@@ -21,6 +21,7 @@ jobs:
           rm -rf "$VENV"
           python3 -m venv "$VENV"
           "$VENV/bin/pip" install -q ./sdk
+          "$VENV/bin/pip" install -q -r tests/requirements.txt
           "$VENV/bin/python" tests/run_tests.py
           "$VENV/bin/python" bin/agentboom selfcheck
 

@@ -1,0 +1,9 @@
+# Extra deps the test suite needs beyond agentboom_sdk (installed separately
+# in CI). These mirror the miniapp runtime deps — the base platform/
+# requirements.txt plus the `requirements` declared in package manifests — so
+# package tests can import the miniapp/connector modules they exercise.
+#
+# Keep in sync: when a package declares a new runtime requirement, add it here
+# so its tests can import that module in CI.
+fastapi>=0.115.0
+cryptography>=44.0.0
