@@ -154,8 +154,11 @@ Package sources. `builtin` ships with agentboom; add any git repository
 or local directory as an extra registry and its packages become
 installable exactly like builtin ones. Packages live in a `packages/`
 directory (configurable with `--subdir`), one folder per package with an
-`.agentboom-package.json` meta file. Remote repos are fetched (cached an
-hour), never executed; only add registries you trust.
+`.agentboom-package.json` meta file. The builtin registry ships two trees
+— `templates/packages/` (addons) and `templates/connectors/`
+(external-service integrations) — and any registry may group packages
+into category subfolders (up to two levels deep). Remote repos are
+fetched (cached an hour), never executed; only add registries you trust.
 
 ```bash
 agentboom registries                                   # list sources

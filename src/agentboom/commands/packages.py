@@ -34,22 +34,20 @@ def packages_root() -> Path:
 
 
 def available_packages() -> list:
-    root = packages_root()
-    if not root.is_dir():
-        return []
     out = []
-    for pkg_dir in sorted(root.iterdir()):
-        meta_path = pkg_dir / PACKAGE_META_NAME
-        if not meta_path.is_file():
+    for root in registries_mod.builtin_roots():
+        if not root.is_dir():
             continue
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
-        out.append({
-            "name": meta.get("name", pkg_dir.name),
-            "description": meta.get("description", ""),
-        })
+        for pkg_dir in registries_mod.iter_package_dirs(root):
+            try:
+                meta = json.loads(
+                    (pkg_dir / PACKAGE_META_NAME).read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            out.append({
+                "name": meta.get("name", pkg_dir.name),
+                "description": meta.get("description", ""),
+            })
     return out
 
 

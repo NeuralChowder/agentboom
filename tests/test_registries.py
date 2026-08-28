@@ -69,6 +69,28 @@ class RegistryConfigTests(unittest.TestCase):
         self.assertEqual(found["vault"]["source"], "builtin")
         registries_mod.remove_registry("collide")
 
+    def test_builtin_connector_tree_is_discovered(self):
+        """Connector-kind packages live in templates/connectors/, a second
+        builtin tree that discovery must cover."""
+        found = {p["name"]: p for p in registries_mod.discover_packages()
+                 if p["source"] == "builtin" and not p.get("error")}
+        self.assertIn("email", found)
+        self.assertEqual(found["email"]["kind"], "connector")
+        self.assertIn("/connectors/", found["email"]["path"])
+        self.assertIn("vault", found)  # addon tree still found
+        self.assertIn("/packages/", found["vault"]["path"])
+
+    def test_category_subfolders_are_discovered(self):
+        """Registries may group packages into category subfolders (depth 2)."""
+        src = _TMP / "src-categorized"
+        _make_pkg(src / "packages" / "shopping", "zz-cart")
+        _make_pkg(src / "packages" / "media", "zz-player")
+        registries_mod.add_registry("categorized", str(src))
+        found = {p["name"]: p for p in registries_mod.discover_packages()}
+        self.assertEqual(found["zz-cart"]["source"], "categorized")
+        self.assertEqual(found["zz-player"]["source"], "categorized")
+        registries_mod.remove_registry("categorized")
+
 
 class DependencyTests(AgentTestCase):
     def setUp(self):

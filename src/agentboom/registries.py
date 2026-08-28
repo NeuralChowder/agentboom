@@ -1,7 +1,10 @@
 """Package registries: where `agentboom add package` finds packages.
 
 A registry is anything that contains a `packages/`-style directory: each
-subdirectory holds one package (files + `.agentboom-package.json` meta).
+package is a directory holding its files + `.agentboom-package.json` meta,
+optionally nested one or two category levels deep. The builtin registry
+keeps addons and connectors in separate trees (`templates/packages` and
+`templates/connectors`) so the kind is visible in the path.
 
 Two source kinds:
   builtin   the packages shipped inside this agentboom installation
@@ -58,8 +61,18 @@ def cache_root() -> Path:
 
 
 def packages_root() -> Path:
-    """The builtin registry: packages bundled with this agentboom."""
+    """Builtin registry, addon tree: feature packages bundled here."""
     return Path(__file__).resolve().parent / "templates" / "packages"
+
+
+def connectors_root() -> Path:
+    """Builtin registry, connector tree: external-service integrations."""
+    return Path(__file__).resolve().parent / "templates" / "connectors"
+
+
+def builtin_roots() -> List[Path]:
+    """Both builtin trees, scan order = collision priority."""
+    return [packages_root(), connectors_root()]
 
 
 def load_config() -> dict:
@@ -209,9 +222,29 @@ def _fetch_remote(reg: dict, refresh: bool) -> Path:
     return target / "packages"
 
 
+def iter_package_dirs(root: Path, max_depth: int = 3):
+    """Package directories (ones holding `.agentboom-package.json`) under
+    `root`, sorted, depth-first, at most `max_depth` levels down — so a
+    registry may group packages into category subfolders."""
+    def walk(current: Path, depth: int):
+        if depth > max_depth:
+            return
+        try:
+            children = sorted(current.iterdir())
+        except OSError:
+            return
+        for child in children:
+            if not child.is_dir():
+                continue
+            if (child / PACKAGE_META_NAME).is_file():
+                yield child
+            else:
+                yield from walk(child, depth + 1)
+    yield from walk(root, 1)
+
+
 def _looks_like_packages_dir(path: Path) -> bool:
-    return any((child / PACKAGE_META_NAME).is_file()
-               for child in path.iterdir() if child.is_dir())
+    return next(iter_package_dirs(path), None) is not None
 
 
 def registry_packages_dir(reg: dict, refresh: bool = False) -> Path:
@@ -234,40 +267,44 @@ def registry_packages_dir(reg: dict, refresh: bool = False) -> Path:
 def discover_packages(refresh: bool = False) -> List[dict]:
     """Every package across every registry, tagged with its source.
 
-    The builtin registry wins on name collisions; among remote registries,
-    the first configured one wins. Deterministic and predictable.
+    The builtin registry wins on name collisions (addon tree before
+    connector tree); among remote registries, the first configured one
+    wins. Deterministic and predictable.
     """
     out: List[dict] = []
     seen = set()
     for reg in list_registries():
-        try:
-            root = registry_packages_dir(reg, refresh=refresh)
-        except RegistryError as exc:
-            out.append({"name": f"(registry {reg['name']} unreachable)",
-                        "source": reg["name"], "error": str(exc),
-                        "description": "", "kind": "addon"})
-            continue
-        if not root.is_dir():
-            continue
-        for pkg_dir in sorted(root.iterdir()):
-            meta_path = pkg_dir / PACKAGE_META_NAME
-            if not meta_path.is_file():
-                continue
+        if reg["source"] == "builtin":
+            roots = [r for r in builtin_roots() if r.is_dir()]
+        else:
             try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
+                root = registry_packages_dir(reg, refresh=refresh)
+            except RegistryError as exc:
+                out.append({"name": f"(registry {reg['name']} unreachable)",
+                            "source": reg["name"], "error": str(exc),
+                            "description": "", "kind": "addon"})
                 continue
-            name = meta.get("name", pkg_dir.name)
-            if name in seen:
+            roots = [root]
+        for root in roots:
+            if not root.is_dir():
                 continue
-            seen.add(name)
-            out.append({
-                "name": name,
-                "description": meta.get("description", ""),
-                "kind": meta.get("kind", "addon"),
-                "icon": meta.get("icon", ""),
-                "requires": meta.get("requires", []),
-                "source": reg["name"],
-                "path": str(pkg_dir),
-            })
+            for pkg_dir in iter_package_dirs(root):
+                meta_path = pkg_dir / PACKAGE_META_NAME
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    continue
+                name = meta.get("name", pkg_dir.name)
+                if name in seen:
+                    continue
+                seen.add(name)
+                out.append({
+                    "name": name,
+                    "description": meta.get("description", ""),
+                    "kind": meta.get("kind", "addon"),
+                    "icon": meta.get("icon", ""),
+                    "requires": meta.get("requires", []),
+                    "source": reg["name"],
+                    "path": str(pkg_dir),
+                })
     return out

@@ -21,7 +21,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 DOCS_SRC = REPO / "docs"
-PACKAGES_ROOT = REPO / "src" / "agentboom" / "templates" / "packages"
+TEMPLATES = REPO / "src" / "agentboom" / "templates"
+PACKAGES_ROOTS = [
+    TEMPLATES / "packages",    # addons
+    TEMPLATES / "connectors",  # external-service integrations
+]
 SYNC_DOCS = ("commands.md", "anatomy.md", "framework.md", "frontend.md")
 
 GENERATED_BANNER = (
@@ -31,20 +35,25 @@ GENERATED_BANNER = (
 
 def load_packages() -> list:
     out = []
-    if not PACKAGES_ROOT.is_dir():
-        return out
-    for pkg_dir in sorted(PACKAGES_ROOT.iterdir()):
-        meta_path = pkg_dir / ".agentboom-package.json"
-        if not meta_path.is_file():
+    for root in PACKAGES_ROOTS:
+        if not root.is_dir():
             continue
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            print(f"warning: bad meta {meta_path}: {exc}", file=sys.stderr)
-            continue
-        meta.setdefault("name", pkg_dir.name)
-        meta["_dir"] = pkg_dir
-        out.append(meta)
+        # depth-1 and depth-2 (category) package dirs
+        pkg_dirs = [d for d in root.iterdir() if d.is_dir()]
+        for cat in [d for d in pkg_dirs if not (d / ".agentboom-package.json").is_file()]:
+            pkg_dirs += [d for d in sorted(cat.iterdir()) if d.is_dir()]
+        for pkg_dir in sorted(pkg_dirs):
+            meta_path = pkg_dir / ".agentboom-package.json"
+            if not meta_path.is_file():
+                continue
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                print(f"warning: bad meta {meta_path}: {exc}", file=sys.stderr)
+                continue
+            meta.setdefault("name", pkg_dir.name)
+            meta["_dir"] = pkg_dir
+            out.append(meta)
     return out
 
 

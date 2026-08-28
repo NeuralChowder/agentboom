@@ -226,17 +226,19 @@ class UseCaseEnginePackagesTests(AgentTestCase):
         """Dual-database doctrine: each package migration may be applied on
         SQLite (default, zero setup) or PostgreSQL (.pg.sql variant)."""
         from agentboom import registries as registries_mod
-        root = registries_mod.packages_root()
-        for pkg in root.iterdir():
-            migrations = pkg / "platform" / "migrations"
-            if not migrations.is_dir():
+        for root in registries_mod.builtin_roots():
+            if not root.is_dir():
                 continue
-            for base in migrations.glob("[0-9]*.sql"):
-                if base.name.endswith(".pg.sql"):
+            for pkg in registries_mod.iter_package_dirs(root):
+                migrations = pkg / "platform" / "migrations"
+                if not migrations.is_dir():
                     continue
-                self.assertTrue(
-                    (migrations / (base.stem + ".pg.sql")).is_file(),
-                    f"{pkg.name}: {base.name} has no .pg.sql variant")
+                for base in migrations.glob("[0-9]*.sql"):
+                    if base.name.endswith(".pg.sql"):
+                        continue
+                    self.assertTrue(
+                        (migrations / (base.stem + ".pg.sql")).is_file(),
+                        f"{pkg.name}: {base.name} has no .pg.sql variant")
 
 
 class MigrationDialectTests(unittest.TestCase):
@@ -341,7 +343,7 @@ class EmailTemplateEngineTests(unittest.TestCase):
         import importlib.util
         import sys
         from agentboom import registries as registries_mod
-        path = (registries_mod.packages_root()
+        path = (registries_mod.connectors_root()
                 / "email/platform/connectors/email/templates.py")
         # Never write bytecode into the template tree.
         old = sys.dont_write_bytecode

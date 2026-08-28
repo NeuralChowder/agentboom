@@ -27,7 +27,9 @@ description: Procedures for operating the agentboom fleet — create agents, syn
 
 - Repeated integration (channels, docs, credential stores) → check
   `agentboom packages`; if missing, build a new package in the agentboom
-  repo (`templates/packages/<name>/`) rather than copy-pasting into agents.
+  repo — `templates/packages/<name>/` for addons,
+  `templates/connectors/<name>/` when it integrates an external service —
+  rather than copy-pasting into agents.
 - Agent-specific procedure → `agentboom add skill` inside that agent.
 
 ## Rules
