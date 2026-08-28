@@ -1,0 +1,63 @@
+{
+  "name": "movienight",
+  "description": "Weekly movie/series sessions researched from what is actually available on your streaming platforms.",
+  "version": "0.1.0",
+  "status": "active",
+  "jobs": [],
+  "ui": {
+    "nav": {
+      "label": "Movie Night",
+      "icon": "film",
+      "group": "Daily",
+      "order": 3
+    },
+    "views": [
+      {
+        "id": "titles",
+        "title": "Titles",
+        "type": "table",
+        "source": "/titles?limit=100",
+        "rows": "titles",
+        "columns": [
+          {"field": "title", "label": "Title", "primary": true},
+          {"field": "type", "label": "Type"},
+          {"field": "year", "label": "Year"},
+          {"field": "platform", "label": "Platform"},
+          {"field": "status", "label": "Status", "format": "badge"},
+          {"field": "liked", "label": "Liked", "format": "boolean"},
+          {"field": "comment", "label": "Comment"},
+          {"field": "why", "label": "Why"},
+          {"field": "added_at", "label": "Added", "format": "relative"}
+        ],
+        "empty": "No recommendations yet — the first session arrives on Friday."
+      },
+      {
+        "id": "taste",
+        "title": "Taste",
+        "type": "table",
+        "source": "/taste?limit=50",
+        "rows": "taste",
+        "columns": [
+          {"field": "title", "label": "Title"},
+          {"field": "seen", "label": "Seen", "format": "boolean"},
+          {"field": "liked", "label": "Liked", "format": "boolean"},
+          {"field": "comment", "label": "Comment"},
+          {"field": "source", "label": "Source"},
+          {"field": "noted_at", "label": "When", "format": "relative"}
+        ],
+        "empty": "No taste notes yet."
+      },
+      {
+        "id": "settings",
+        "title": "Settings",
+        "type": "form",
+        "description": "Configure the platforms and region used for research.",
+        "fields": [
+          {"name": "platforms", "label": "Platforms", "type": "textarea", "placeholder": "{\"netflix\": \"Netflix\", \"prime\": \"Prime Video\"}"},
+          {"name": "country", "label": "Country", "type": "text", "placeholder": "e.g. a country name (optional)"}
+        ],
+        "submit": {"method": "PUT", "path": "/settings", "label": "Save settings"}
+      }
+    ]
+  }
+}

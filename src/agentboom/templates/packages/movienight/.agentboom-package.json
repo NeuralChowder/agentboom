@@ -1,0 +1,15 @@
+{
+  "name": "movienight",
+  "description": "Weekly movie/series sessions researched from what is actually available on your streaming platforms, personalized by your reactions.",
+  "kind": "addon",
+  "icon": "🎬",
+  "requires": [],
+  "requirements": [],
+  "env_example": [],
+  "post_install": [
+    "Restart the platform: docker compose restart endpoint-platform (applies 020_movienight.sql, hot-loads the app).",
+    "Open the Movie Night tab: GET /api/movienight/settings to check defaults; configure platforms or country via PUT /api/movienight/settings.",
+    "Run a session: POST /api/movienight/generate (the digestos hub calls this weekly; manual runs are fine for testing).",
+    "Watch reactions: POST /api/movienight/taste to log what you've watched — reactions sharpen next week's session."
+  ]
+}
