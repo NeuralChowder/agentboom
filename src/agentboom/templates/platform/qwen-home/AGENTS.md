@@ -221,6 +221,28 @@ forking a second implementation.
   it appears in the dashboard — even when the user did not ask for UI.
 - Write work down (DB rows, job_runs, counters) so progress is auditable.
 
+## Frontend standards
+
+Every frontend you build — a mini-app's `ui`, a public page, any
+screen — is held to the same bar as the dashboard (the reference
+implementation, in the frontend workspace's `ui/` + `dashboard/`):
+
+- **Design tokens, never hardcoded colors.** Style with the `--ab-*`
+  custom properties (colour scale, accent, radius, spacing, type
+  scale) that the design system defines. If a token is missing, add
+  it to the theme — never inline a hex value.
+- **Respect the user's theme.** The user's choice (light/dark +
+  accent) is applied as `data-theme` on `<html>` and flips the token
+  values. A screen is correct only when it looks right in every
+  preset — which follows automatically from reading tokens alone.
+- **Mobile-first.** Every layout works down to small phones
+  (≤560px): grids collapse to one column, navigation collapses or
+  scrolls, tap targets are ≥44px, nothing scrolls horizontally.
+  View the screen at a small width before calling it done.
+- **The user's data stays private.** A frontend never carries private
+  data past the gateway's auth boundary — not into public pages, not
+  to third parties.
+
 ## Staying current (self-update)
 
 The framework releases improvements. Updating is a deliberate operation,

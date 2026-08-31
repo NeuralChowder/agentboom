@@ -45,3 +45,13 @@ The proxy target defaults to the published loopback port
   build time, not at runtime.
 - Theming is tokens: swap the `Theme` passed to `<AgentBoomProvider>` to
   re-skin everything.
+
+## Theming
+
+Presets live in `app/theme.tsx` (Theme objects) and `app/globals.css`
+(token values) — keep them in sync. The user's choice is one id
+(`dawn`, `dusk`, or `<mode>-<accent>`, e.g. `dusk-ocean`), applied as
+`data-theme` on `<html>` so the token values flip everywhere. It
+persists in `localStorage` and is mirrored best-effort to
+`profile.theme` via the settings mini-app; a boot script in
+`app/layout.tsx` applies it before first paint. Default is light.

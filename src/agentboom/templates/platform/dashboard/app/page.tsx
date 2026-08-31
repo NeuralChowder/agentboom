@@ -7,9 +7,18 @@ import {
   Empty,
   MiniAppView,
   PlatformClient,
-  defaultTheme,
   type MiniAppEntry,
 } from "@agentboom/ui";
+import {
+  DEFAULT_CHOICE,
+  ThemeSelect,
+  parseThemeId,
+  readStoredThemeId,
+  themeFor,
+  themeId,
+  writeStoredThemeId,
+  type ThemeChoice,
+} from "./theme";
 
 // Same-origin: /api/* and /public/* are proxied to the platform gateway by
 // next.config. The gateway's hard public boundary requires the bearer token
@@ -40,12 +49,30 @@ function useIsMobile() {
   return mobile;
 }
 
+/**
+ * Best-effort mirror of the theme choice into the settings mini-app
+ * (profile.theme), so the choice follows the user beyond this browser.
+ * localStorage already keeps it; failures here are silent.
+ */
+async function saveThemeToSettings(id: string): Promise<void> {
+  try {
+    const data = await client.getJson<{ profile?: Record<string, unknown> }>(
+      "/api/settings/profile",
+    );
+    const profile = { ...(data.profile ?? {}), theme: id };
+    await client.sendJson("PUT", "/api/settings/profile", { profile });
+  } catch {
+    // settings mini-app absent or agent home unmounted — fine.
+  }
+}
+
 export default function DashboardPage() {
   const [apps, setApps] = useState<MiniAppEntry[]>([]);
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [activeName, setActiveName] = useState<string>(COMMANDO);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [choice, setChoice] = useState<ThemeChoice>(DEFAULT_CHOICE);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -73,6 +100,38 @@ export default function DashboardPage() {
       });
   }, []);
 
+  // The choice flips the token values in globals.css via `data-theme` on
+  // <html>, and reaches the components through the Theme handed to the
+  // provider (its inline vars carry the same values).
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", themeId(choice));
+  }, [choice]);
+
+  // Load the persisted choice: localStorage first, then the settings
+  // profile (so a returning user on a fresh browser keeps their theme).
+  useEffect(() => {
+    const stored = readStoredThemeId();
+    if (stored) {
+      setChoice(parseThemeId(stored));
+      return;
+    }
+    client
+      .getJson<{ profile?: { theme?: unknown } }>("/api/settings/profile")
+      .then((d) => {
+        if (typeof d.profile?.theme === "string") {
+          setChoice(parseThemeId(d.profile.theme));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const selectTheme = (c: ThemeChoice) => {
+    setChoice(c);
+    const id = themeId(c);
+    writeStoredThemeId(id);
+    void saveThemeToSettings(id);
+  };
+
   const navApps = useMemo<MiniAppEntry[]>(
     () => [
       {
@@ -91,8 +150,33 @@ export default function DashboardPage() {
       : navApps.find((a) => a.name === activeName) ?? null;
   const isCommando = activeName === COMMANDO;
 
+  // Shared by both layouts: the collapsed mobile nav must navigate too.
+  const content = isCommando ? (
+    <CommandoContent apps={apps} health={health} agentUiUrl={AGENT_UI_URL} />
+  ) : active ? (
+    <>
+      <h1
+        style={{ marginTop: 0, fontSize: "var(--ab-text-xl)", color: "var(--ab-text)" }}
+      >
+        {active.ui?.nav?.label ?? active.name}
+      </h1>
+      {active.description ? (
+        <p style={{ color: "var(--ab-muted)", marginTop: 0 }}>
+          {active.description}
+        </p>
+      ) : null}
+      <MiniAppView app={active} />
+    </>
+  ) : !loading && !error ? (
+    <div style={{ color: "var(--ab-faint)" }}>
+      No mini-apps declare a UI yet. Add one with{" "}
+      <code>agentboom add miniapp &lt;name&gt;</code> and give it a{" "}
+      <code>ui</code> manifest.
+    </div>
+  ) : null;
+
   return (
-    <AgentBoomProvider client={client} theme={defaultTheme}>
+    <AgentBoomProvider client={client} theme={themeFor(choice)}>
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
           <MobileHeader
@@ -100,35 +184,18 @@ export default function DashboardPage() {
             active={activeName}
             onSelect={setActiveName}
             agentUiUrl={AGENT_UI_URL}
+            choice={choice}
+            onTheme={selectTheme}
           />
-          <main style={{ padding: 16, overflowX: "auto" }}>
-            <CommandoContent
-              apps={apps}
-              health={health}
-              agentUiUrl={AGENT_UI_URL}
-            />
-          </main>
+          <main className="ab-main">{content}</main>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "240px 1fr",
-            minHeight: "100vh",
-            background: "var(--ab-bg)",
-          }}
-        >
-          <aside
-            style={{
-              borderRight: "1px solid var(--ab-border)",
-              padding: 16,
-              background: "var(--ab-bg-soft)",
-            }}
-          >
+        <div className="ab-shell">
+          <aside className="ab-sidebar">
             <div
               style={{
-                fontWeight: 700,
-                fontSize: "1.05em",
+                fontWeight: "var(--ab-fw-bold)",
+                fontSize: "var(--ab-text-lg)",
                 marginBottom: 6,
                 color: "var(--ab-text)",
               }}
@@ -144,7 +211,7 @@ export default function DashboardPage() {
                   display: "inline-block",
                   marginBottom: 14,
                   color: "var(--ab-muted)",
-                  fontSize: "0.85em",
+                  fontSize: "var(--ab-text-sm)",
                   textDecoration: "none",
                 }}
               >
@@ -154,7 +221,7 @@ export default function DashboardPage() {
             {loading ? (
               <div style={{ color: "var(--ab-faint)" }}>Loading…</div>
             ) : error ? (
-              <div style={{ color: "var(--ab-danger)", fontSize: "0.9em" }}>
+              <div style={{ color: "var(--ab-danger)", fontSize: "var(--ab-text-sm)" }}>
                 Could not reach the platform.
                 <br />
                 {error}
@@ -166,37 +233,27 @@ export default function DashboardPage() {
                 onSelect={(app) => setActiveName(app.name)}
               />
             )}
+            <div style={{ marginTop: "auto", paddingTop: "var(--ab-space-5)" }}>
+              <div
+                style={{
+                  color: "var(--ab-faint)",
+                  fontSize: "var(--ab-text-xs)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: 4,
+                }}
+              >
+                Theme
+              </div>
+              <ThemeSelect
+                value={choice}
+                onChange={selectTheme}
+                className="ab-theme-select"
+              />
+            </div>
           </aside>
 
-          <main style={{ padding: 24, overflowX: "auto" }}>
-            {isCommando ? (
-              <CommandoContent
-                apps={apps}
-                health={health}
-                agentUiUrl={AGENT_UI_URL}
-              />
-            ) : active ? (
-              <>
-                <h1
-                  style={{ marginTop: 0, fontSize: "1.3em", color: "var(--ab-text)" }}
-                >
-                  {active.ui?.nav?.label ?? active.name}
-                </h1>
-                {active.description ? (
-                  <p style={{ color: "var(--ab-muted)", marginTop: 0 }}>
-                    {active.description}
-                  </p>
-                ) : null}
-                <MiniAppView app={active} />
-              </>
-            ) : !loading && !error ? (
-              <div style={{ color: "var(--ab-faint)" }}>
-                No mini-apps declare a UI yet. Add one with{" "}
-                <code>agentboom add miniapp &lt;name&gt;</code> and give it a{" "}
-                <code>ui</code> manifest.
-              </div>
-            ) : null}
-          </main>
+          <main className="ab-main">{content}</main>
         </div>
       )}
     </AgentBoomProvider>
@@ -208,35 +265,23 @@ function MobileHeader({
   active,
   onSelect,
   agentUiUrl,
+  choice,
+  onTheme,
 }: {
   apps: MiniAppEntry[];
   active: string;
   onSelect: (name: string) => void;
   agentUiUrl: string;
+  choice: ThemeChoice;
+  onTheme: (choice: ThemeChoice) => void;
 }) {
   return (
-    <header
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 14px",
-        borderBottom: "1px solid var(--ab-border)",
-        background: "var(--ab-bg-soft)",
-      }}
-    >
+    <header className="ab-mobile-header">
       <select
         value={active}
         onChange={(e) => onSelect(e.target.value)}
-        style={{
-          flex: 1,
-          font: "inherit",
-          padding: "6px 8px",
-          borderRadius: "var(--ab-radius-sm)",
-          border: "1px solid var(--ab-border)",
-          background: "var(--ab-bg-card)",
-          color: "var(--ab-text)",
-        }}
+        aria-label="Section"
+        className="ab-select ab-nav-select"
       >
         {apps.map((a) => (
           <option key={a.name} value={a.name}>
@@ -249,11 +294,12 @@ function MobileHeader({
           href={agentUiUrl}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "var(--ab-muted)", textDecoration: "none", fontSize: "0.9em" }}
+          style={{ color: "var(--ab-muted)", textDecoration: "none", fontSize: "var(--ab-text-sm)" }}
         >
           Agent UI ↗
         </a>
       ) : null}
+      <ThemeSelect value={choice} onChange={onTheme} className="ab-theme-select" />
     </header>
   );
 }
@@ -272,7 +318,7 @@ function CommandoContent({
 
   return (
     <div>
-      <h1 style={{ marginTop: 0, fontSize: "1.3em", color: "var(--ab-text)" }}>
+      <h1 style={{ marginTop: 0, fontSize: "var(--ab-text-xl)", color: "var(--ab-text)" }}>
         Commando
       </h1>
       <p style={{ color: "var(--ab-muted)", marginTop: 0 }}>
@@ -280,14 +326,7 @@ function CommandoContent({
         catalog — nothing here is hardcoded.
       </p>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: 10,
-          margin: "16px 0 24px",
-        }}
-      >
+      <div className="ab-cards ab-cards--stats" style={{ margin: "var(--ab-space-4) 0 var(--ab-space-5)" }}>
         <StatCard
           label="Gateway"
           value={gatewayOk ? "ok" : "down"}
@@ -297,20 +336,13 @@ function CommandoContent({
         <StatCard label="Apps with UI" value={withUi.length} />
       </div>
 
-      <h2 style={{ fontSize: "1.05em", fontWeight: 600, marginBottom: 4 }}>
+      <h2 style={{ fontSize: "var(--ab-text-lg)", fontWeight: 600, marginBottom: 4 }}>
         Getting started
       </h2>
-      <p style={{ color: "var(--ab-faint)", fontSize: "0.85em", marginTop: 0 }}>
+      <p style={{ color: "var(--ab-faint)", fontSize: "var(--ab-text-sm)", marginTop: 0 }}>
         A few minutes is all it takes — ask the agent, it can do most of this for you.
       </p>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          gap: 10,
-          marginBottom: 28,
-        }}
-      >
+      <div className="ab-cards" style={{ marginBottom: "var(--ab-space-6)" }}>
         <OnboardCard
           title="Talk to it from your phone"
           body='Install the telegram package, then ask the agent: "set up telegram". It walks you through @BotFather and finishes the wiring itself.'
@@ -328,21 +360,13 @@ function CommandoContent({
                 href={agentUiUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  marginTop: 10,
-                  background: "var(--ab-accent)",
-                  color: "var(--ab-accent-contrast)",
-                  borderRadius: "var(--ab-radius-sm)",
-                  padding: "6px 14px",
-                  textDecoration: "none",
-                  fontSize: "0.9em",
-                }}
+                className="ab-action"
+                style={{ marginTop: "var(--ab-space-3)" }}
               >
                 Open ↗
               </a>
             ) : (
-              <span style={{ marginTop: 10, display: "inline-block", fontSize: "0.85em" }}>
+              <span style={{ marginTop: "var(--ab-space-3)", display: "inline-block", fontSize: "var(--ab-text-sm)" }}>
                 Set NEXT_PUBLIC_AGENT_UI to enable.
               </span>
             )
@@ -350,39 +374,25 @@ function CommandoContent({
         />
       </div>
 
-      <h2 style={{ fontSize: "1.05em", fontWeight: 600, marginBottom: 4 }}>
+      <h2 style={{ fontSize: "var(--ab-text-lg)", fontWeight: 600, marginBottom: 4 }}>
         Your apps
       </h2>
-      <p style={{ color: "var(--ab-faint)", fontSize: "0.85em", marginTop: 0 }}>
+      <p style={{ color: "var(--ab-faint)", fontSize: "var(--ab-text-sm)", marginTop: 0 }}>
         Private — reachable by the assistant and this dashboard only.
       </p>
       {withUi.length === 0 ? (
         <Empty text="No apps with a UI yet — install packages with `agentboom add package`." />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: 10,
-          }}
-        >
+        <div className="ab-cards">
           {apps.map((a) => (
-            <div
-              key={a.name}
-              style={{
-                border: "1px solid var(--ab-border)",
-                borderRadius: "var(--ab-radius-md)",
-                background: "var(--ab-bg-card)",
-                padding: 12,
-              }}
-            >
+            <div key={a.name} className="ab-card" style={{ padding: "var(--ab-space-3)" }}>
               <div style={{ fontWeight: 600 }}>
                 {a.ui?.nav?.label ?? a.name}
                 {a.ui?.views?.length ? null : (
                   <span
                     style={{
                       marginLeft: 8,
-                      fontSize: "0.7em",
+                      fontSize: "var(--ab-text-xs)",
                       color: "var(--ab-faint)",
                       border: "1px solid var(--ab-border)",
                       borderRadius: "var(--ab-radius-lg)",
@@ -398,7 +408,7 @@ function CommandoContent({
                 style={{
                   margin: "6px 0 0",
                   color: "var(--ab-muted)",
-                  fontSize: "0.85em",
+                  fontSize: "var(--ab-text-sm)",
                   overflow: "hidden",
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
@@ -425,16 +435,9 @@ function StatCard({
   tone?: string;
 }) {
   return (
-    <div
-      style={{
-        border: "1px solid var(--ab-border)",
-        borderRadius: "var(--ab-radius-md)",
-        background: "var(--ab-bg-card)",
-        padding: 12,
-      }}
-    >
-      <div style={{ color: "var(--ab-faint)", fontSize: "0.85em" }}>{label}</div>
-      <div style={{ fontSize: "1.4em", fontWeight: 600, color: tone }}>{value}</div>
+    <div className="ab-card" style={{ padding: "var(--ab-space-3)" }}>
+      <div style={{ color: "var(--ab-faint)", fontSize: "var(--ab-text-sm)" }}>{label}</div>
+      <div style={{ fontSize: "var(--ab-text-2xl)", fontWeight: 600, color: tone }}>{value}</div>
     </div>
   );
 }
@@ -449,16 +452,9 @@ function OnboardCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        border: "1px solid var(--ab-border)",
-        borderRadius: "var(--ab-radius-md)",
-        background: "var(--ab-bg-card)",
-        padding: 14,
-      }}
-    >
+    <div className="ab-card" style={{ padding: 14 }}>
       <div style={{ fontWeight: 600 }}>{title}</div>
-      <p style={{ margin: "6px 0 0", color: "var(--ab-muted)", fontSize: "0.85em" }}>
+      <p style={{ margin: "6px 0 0", color: "var(--ab-muted)", fontSize: "var(--ab-text-sm)" }}>
         {body}
       </p>
       {action}

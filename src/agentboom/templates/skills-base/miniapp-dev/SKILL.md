@@ -55,6 +55,25 @@ events published with `await agentboom_sdk.events.publish("some.event", {...})`.
 5. If the app failed to load, the error's tail is in `/admin/status` →
    `load_errors`. Fix and save again; reload is automatic.
 
+## Frontend standards — checklist for any UI
+
+When the mini-app ships a `ui` block (or you build any screen), every
+item must pass:
+
+- [ ] **Design tokens only** — colours, radius, spacing, and type come
+      from the `--ab-*` custom properties; never hardcode brand colors
+      or hex values a token covers.
+- [ ] **Respects the user's chosen theme** — renders correctly under
+      every `data-theme` preset (light/dark + accent) because it reads
+      tokens, not fixed values.
+- [ ] **Mobile-first** — usable at ≤560px: grids collapse to one
+      column, no horizontal overflow, tap targets ≥ 44px.
+- [ ] **Private** — the user's data stays inside the platform's auth
+      boundary; nothing leaks to public surfaces or third parties.
+
+The dashboard (`@agentboom/ui` renderers + the dashboard app in the
+frontend workspace) is the reference implementation — match it.
+
 ## Notes
 
 - The watcher skips `__pycache__`; editing `.pyc` files does nothing.
