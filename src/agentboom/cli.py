@@ -145,6 +145,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("dir", nargs="?", default=None, help="agent directory (optional)")
     p.add_argument("--refresh", action="store_true",
                    help="re-fetch remote registries first")
+    p.add_argument("--country", default=None,
+                   help="ISO-3166 alpha-2 code; hide packages not relevant to "
+                        "that country (universal packages always shown)")
 
     p = sub.add_parser("registries", parents=[common],
                        help="package sources: builtin plus any repo/dir you add")

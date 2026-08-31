@@ -304,7 +304,28 @@ def discover_packages(refresh: bool = False) -> List[dict]:
                     "kind": meta.get("kind", "addon"),
                     "icon": meta.get("icon", ""),
                     "requires": meta.get("requires", []),
+                    # Locale/organisation metadata so country-specific
+                    # packages (e.g. a PT grocery connector) can be filtered
+                    # and grouped. Absent = universal.
+                    "tags": meta.get("tags", []),
+                    "country": meta.get("country", []),
+                    "category": meta.get("category", ""),
                     "source": reg["name"],
                     "path": str(pkg_dir),
                 })
     return out
+
+
+def package_matches_country(pkg: dict, country: str) -> bool:
+    """True when a package is relevant for `country` (ISO-3166 alpha-2).
+
+    A package with no `country` (or containing "*") is universal and matches
+    everywhere; otherwise it matches only the listed countries.
+    """
+    if not country:
+        return True
+    wanted = (country or "").strip().upper()
+    countries = [c.strip().upper() for c in (pkg.get("country") or [])]
+    if not countries or "*" in countries:
+        return True
+    return wanted in countries

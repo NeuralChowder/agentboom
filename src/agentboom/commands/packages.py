@@ -83,6 +83,27 @@ def run_add_package(args) -> dict:
     agent_dir = _agent_dir(args)
     registry = load_registry(agent_dir)
 
+    # Country relevance is advisory, never blocking: a user may legitimately
+    # want a foreign connector, but a non-developer should be told when a
+    # package is aimed at a different country than theirs.
+    country_note = ""
+    pkg_countries = [c.strip().upper() for c in (meta.get("country") or [])]
+    if pkg_countries and "*" not in pkg_countries:
+        profile_path = agent_dir / QWEN_HOME_DEST / "profile.json"
+        profile_country = ""
+        if profile_path.is_file():
+            try:
+                profile_country = (
+                    json.loads(profile_path.read_text(encoding="utf-8"))
+                    .get("country") or "").strip().upper()
+            except (json.JSONDecodeError, OSError):
+                profile_country = ""
+        if profile_country and profile_country not in pkg_countries:
+            country_note = (
+                f"'{name}' targets {', '.join(pkg_countries)} but this agent's "
+                f"profile country is {profile_country} — it may not be relevant "
+                "here.")
+
     # Dependencies first: a package whose `requires` are not installed
     # would ship mini-apps that cannot work — refuse with the exact list.
     installed = registry.get("packages", {})
@@ -170,6 +191,7 @@ def run_add_package(args) -> dict:
         "ok": True,
         "package": name,
         "agent_dir": str(agent_dir),
+        "country_note": country_note,
         "created": created,
         "skipped_existing": skipped,
         "requirements_added": added_reqs,
@@ -189,11 +211,14 @@ def run_packages(args) -> dict:
         if registry:
             installed = registry.get("packages", {})
     refresh = getattr(args, "refresh", False)
+    country = (getattr(args, "country", None) or "").strip()
     discovered = registries_mod.discover_packages(refresh=refresh)
     available = [
-        {k: p[k] for k in ("name", "description", "kind", "icon", "requires", "source")
+        {k: p[k] for k in ("name", "description", "kind", "icon", "requires",
+                           "tags", "country", "category", "source")
          if k in p}
-        for p in discovered if not p.get("error")
+        for p in discovered
+        if not p.get("error") and registries_mod.package_matches_country(p, country)
     ]
     unreachable = [
         {"registry": p["source"], "error": p["error"]}

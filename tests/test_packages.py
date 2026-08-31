@@ -29,6 +29,23 @@ class PackageDiscoveryTests(AgentTestCase):
             self.assertIn("source", pkg)
             self.assertEqual(pkg["source"], "builtin")
 
+    def test_country_metadata_is_surfaced(self):
+        result = packages_cmd.run_packages(argparse.Namespace(dir=None))
+        by_name = {p["name"]: p for p in result["available"]}
+        self.assertEqual(by_name["continente"]["country"], ["PT"])
+        self.assertIn("grocery", by_name["continente"]["tags"])
+        self.assertEqual(by_name["continente"]["category"], "shopping")
+        self.assertEqual(by_name["vault"]["country"], [])  # universal
+
+    def test_country_filter_hides_foreign_packages(self):
+        es = packages_cmd.run_packages(argparse.Namespace(dir=None, country="ES"))
+        names_es = {p["name"] for p in es["available"]}
+        self.assertNotIn("continente", names_es)  # PT-only
+        self.assertIn("vault", names_es)          # universal always shown
+        pt = packages_cmd.run_packages(argparse.Namespace(dir=None, country="pt"))
+        names_pt = {p["name"] for p in pt["available"]}
+        self.assertIn("continente", names_pt)     # case-insensitive
+
 
 class RichLinkPackageTests(AgentTestCase):
     def test_install_creates_miniapp_and_skill(self):
