@@ -13,12 +13,13 @@ Three surfaces, three names, one brand:
 | Surface | Name | Repo | Open? |
 |---|---|---|---|
 | OSS framework: CLI `agentboom`, Python+TS SDKs, templates, registry | **agentboom-sdk** (rename of `agentboom`) | `agent-boom/agentboom-sdk` | yes |
-| The per-user product: one self-evolving agent + its platform ("the OS for your life") | **agentboom OS** (replaces "agentboom-agent") | `agent-boom/agentboom-os` (reference instance) | no |
+| The per-user product: one self-evolving agent + its platform ("the OS for your life") | **agentboom** (the agent's default name is "boom") | `agent-boom/agentboom-agent` (reference instance) | no |
 | The SaaS: marketing front door + private console to launch/manage agents | **agentboom.dev** | `agent-boom/agentboom-website` | yes |
 
 Rationale: "agentboom" is the brand/URL; the OSS artifact is an SDK; the
-per-user product is an "OS" (matches the north star). Final names are a user
-decision (see open questions).
+per-user product is an "OS" (matches the north star). The agent's **default
+name is "boom"** (marketing, 2026-08-28) — every user can rename theirs at
+any time; "boom" is only the out-of-the-box identity.
 
 ## 2. Repos & org
 
