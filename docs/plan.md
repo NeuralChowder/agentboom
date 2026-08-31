@@ -211,3 +211,9 @@ None — all queued packages are complete. Next steps below.
   api_gateway:app --app-dir platform --port 8130`; re-copy package files
   into the dash after repo edits, restart the gateway, curl with
   `Bearer testtoken123`.
+- **Org transfer**: GitHub repo/org **secrets and `ghcr.io` namespaces do NOT
+  follow a transfer** (ghcr namespaces don't redirect). After moving repos,
+  rewrite hardcoded `ghcr.io/<old-org>/...` image paths in CI + Helm (the
+  website deploy died with "installation does not exist" until repointed to
+  the new org), re-add any repo/org secrets, and register a self-hosted
+  runner for the new org (runners bind to one scope).
