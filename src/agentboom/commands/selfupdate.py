@@ -22,7 +22,7 @@ from typing import Optional
 
 from agentboom import __version__
 
-REPO = "agent-boom/agentboom"
+REPO = "agent-boom/agentboom-sdk"
 API_LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 
 

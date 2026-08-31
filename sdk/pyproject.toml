@@ -28,7 +28,7 @@ dependencies = [
 postgres = ["asyncpg>=0.29.0"]
 
 [project.urls]
-Homepage = "https://github.com/agent-boom/agentboom"
+Homepage = "https://github.com/agent-boom/agentboom-sdk"
 
 [tool.setuptools.packages.find]
 where = ["src"]

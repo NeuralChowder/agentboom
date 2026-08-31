@@ -8,8 +8,8 @@ Mini-app usage:
 
     from connectors.github import open_issues, latest_releases
 
-    issues = await open_issues("agent-boom/agentboom", since="2026-08-01T00:00:00Z")
-    releases = await latest_releases("agent-boom/agentboom")
+    issues = await open_issues("agent-boom/agentboom-sdk", since="2026-08-01T00:00:00Z")
+    releases = await latest_releases("agent-boom/agentboom-sdk")
 
 Env:
   GITHUB_TOKEN  optional PAT / fine-grained token (read scopes suffice)

@@ -26,7 +26,7 @@ classifiers = [
 agentboom = "agentboom.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/agent-boom/agentboom"
+Homepage = "https://github.com/agent-boom/agentboom-sdk"
 
 [tool.setuptools.packages.find]
 where = ["src"]

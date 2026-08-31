@@ -31,7 +31,7 @@ per-user instance is `../agentboom-agent`.
 
 | Repo | Role |
 |---|---|
-| `agent-boom/agentboom` (this one) | The growing generic framework: CLI, Python + TS SDKs, package/connector registry, platform + UI + dashboard templates, self-update. Fully refactorable — no backwards-compat constraints. |
+| `agent-boom/agentboom-sdk` (this one) | The growing generic framework: CLI, Python + TS SDKs, package/connector registry, platform + UI + dashboard templates, self-update. Fully refactorable — no backwards-compat constraints. |
 | `agent-boom/agentboom-website` | agentboom.dev — consumer front door + private console (launch/manage agents). |
 | `agent-boom/agentboom-deploy` | Private deploy repo: Helm charts + per-deployment values + deploy dispatch (mirrors xema-deploy). |
 | `../agentboom-agent` (live reference, not versioned) | The per-user instance: `agentboom init` + curated default package set + one docker-compose per user (ports, DB choice, base URLs in per-instance `.env`). |
