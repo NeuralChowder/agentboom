@@ -2,7 +2,7 @@ name: Release
 
 # Two-step pipeline on the repo's self-hosted runner: build both packages,
 # then publish them as GitHub Release assets. Install a release with:
-#   pip install https://github.com/NeuralChowder/agentboom/releases/download/<tag>/agentboom_sdk-<ver>-py3-none-any.whl
+#   pip install https://github.com/agent-boom/agentboom/releases/download/<tag>/agentboom_sdk-<ver>-py3-none-any.whl
 
 on:
   push:

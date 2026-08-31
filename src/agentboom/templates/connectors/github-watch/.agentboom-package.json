@@ -15,7 +15,7 @@
   ],
   "post_install": [
     "Restart the platform: docker compose restart endpoint-platform (applies 004_github_watch.sql, hot-loads the app).",
-    "Watch a repo: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/github-watch/repos -H 'Content-Type: application/json' -d '{\"repo\": \"NeuralChowder/agentboom\"}'",
+    "Watch a repo: curl -s -X POST http://127.0.0.1:{{PORT_PLATFORM}}/api/github-watch/repos -H 'Content-Type: application/json' -d '{\"repo\": \"agent-boom/agentboom\"}'",
     "Checks run every 15 minutes (manifest job); new issues/releases publish github.new_event.",
     "Set GITHUB_TOKEN in .env for anything beyond casual use (60 req/h unauthenticated)."
   ]

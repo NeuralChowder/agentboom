@@ -38,13 +38,13 @@ Requires **Python 3.10+**. Works on Linux, macOS, and Windows.
 ```bash
 pipx install .
 # or straight from a GitHub release:
-pipx install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
+pipx install "agentboom @ https://github.com/agent-boom/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
 ```
 
 **No `pipx`? Plain `pip` works too:**
 
 ```bash
-pip install "agentboom @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
+pip install "agentboom @ https://github.com/agent-boom/agentboom/releases/download/v0.7.0/agentboom-0.7.0-py3-none-any.whl"
 ```
 
 `pip` may put the `agentboom` command somewhere not on your `PATH`

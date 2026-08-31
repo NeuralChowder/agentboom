@@ -29,7 +29,7 @@ by reading it.
 ## The runtime SDK (`agentboom_sdk`)
 
 Installed as a package (pinned in `platform/requirements.txt` to a
-GitHub release asset of NeuralChowder/agentboom):
+GitHub release asset of agent-boom/agentboom):
 
 | Module | Purpose |
 |---|---|

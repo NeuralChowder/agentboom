@@ -26,7 +26,7 @@ classifiers = [
 agentboom = "agentboom.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/NeuralChowder/agentboom"
+Homepage = "https://github.com/agent-boom/agentboom"
 
 [tool.setuptools.packages.find]
 where = ["src"]

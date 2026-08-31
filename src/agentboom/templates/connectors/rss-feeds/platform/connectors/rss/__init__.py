@@ -26,7 +26,7 @@ log = logging.getLogger("connectors.rss")
 
 _TIMEOUT = float(os.environ.get("RSS_TIMEOUT_SEC", "30"))
 _MAX_ITEMS = int(os.environ.get("RSS_MAX_ITEMS", "50"))
-_USER_AGENT = "agentboom-feeds/0.1 (+https://github.com/NeuralChowder/agentboom)"
+_USER_AGENT = "agentboom-feeds/0.1 (+https://github.com/agent-boom/agentboom)"
 
 
 class RssError(RuntimeError):

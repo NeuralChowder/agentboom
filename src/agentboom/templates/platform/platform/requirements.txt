@@ -1,5 +1,5 @@
 # Base runtime SDK — installed from agentboom GitHub release assets.
 # Bump this pin (and rebuild) to take base updates.
-agentboom_sdk @ https://github.com/NeuralChowder/agentboom/releases/download/v0.7.0/agentboom_sdk-0.7.0-py3-none-any.whl
+agentboom_sdk @ https://github.com/agent-boom/agentboom/releases/download/v0.7.0/agentboom_sdk-0.7.0-py3-none-any.whl
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0

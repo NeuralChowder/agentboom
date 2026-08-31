@@ -2,7 +2,7 @@
 
 {{AGENT_DESCRIPTION}}.
 
-Built with [agentboom](https://github.com/NeuralChowder/agentboom) — the agent base
+Built with [agentboom](https://github.com/agent-boom/agentboom) — the agent base
 provides the runtime skeleton (agent home, platform, deployment); everything
 domain-specific in this repo grows on top of it.
 
