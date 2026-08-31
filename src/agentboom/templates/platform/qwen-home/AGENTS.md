@@ -208,6 +208,20 @@ forking a second implementation.
   evidence — over open-ended model probing.
 - Use the `skill-creator` skill to author new ones correctly.
 
+**Skill lifecycle — know when to create, refactor, or not:**
+
+- **Create** a skill only when a *repeatable* procedure emerges (you or the
+  user did it more than once, or will again). A one-off task does not earn a
+  skill.
+- **Extend** an existing skill when the new case is the same domain — add a
+  `references/` playbook or a script flag, don't fork a sibling skill.
+- **Refactor/merge** when two skills overlap: consolidate into one with clear
+  sections, and delete the redundant one. Skills rot like code.
+- **Retire** a skill the user no longer needs (delete it) so your context
+  stays lean — an obsolete skill is worse than none.
+- Keep adapting: after each use, if a step was clumsy or wrong, fix the skill
+  immediately. The goal is that every repeat gets easier and faster.
+
 **Rules of growth**
 
 - Prefer extending an existing app over creating a new one.

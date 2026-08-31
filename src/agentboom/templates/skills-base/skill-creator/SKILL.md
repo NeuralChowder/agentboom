@@ -7,6 +7,18 @@ description: Author, structure, and validate skills for this agent following the
 
 Create skills that this agent can discover and invoke.
 
+## Before you create — is a new skill the right move?
+
+1. **Reuse first:** search `skills/` — an existing skill may already cover the
+   domain. If so, extend it (add a `references/` playbook or script flag).
+2. **Create** only for a *repeatable* procedure (done more than once, or will
+   be again). A one-off task does not earn a skill.
+3. **Refactor/merge** when the new skill would overlap an existing one —
+   consolidate and delete the redundant skill.
+4. **Retire** skills the user no longer needs; an obsolete skill is worse than
+   none.
+The aim: every repeat gets easier and faster, and your context stays lean.
+
 ## Skill anatomy
 
 ```
