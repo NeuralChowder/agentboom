@@ -23,10 +23,18 @@ status, decisions, queue, and the rules every piece of work must respect.
 
 ## Repos and their split
 
+All repos live in the **`agent-boom` GitHub org** (transferred 2026-08-28;
+one org-level self-hosted runner `ab-owl` online). Naming: the OSS framework
+is the SDK (`agentboom-sdk` identity; repo currently `agentboom`), the
+consumer brand/product is **agentboom** (agentboom.dev), the reference
+per-user instance is `../agentboom-agent`.
+
 | Repo | Role |
 |---|---|
-| `../agentboom` (this one) | The growing generic framework: CLI, Python + TS SDKs, package/connector registry, platform + UI + dashboard templates, self-update. Fully refactorable — no backwards-compat constraints. |
-| `../agentboom-agent` (to be created) | The per-user instance template: `agentboom init` + the curated default package set + one docker-compose per user (ports, DB choice, base URLs in per-instance `.env`). |
+| `agent-boom/agentboom` (this one) | The growing generic framework: CLI, Python + TS SDKs, package/connector registry, platform + UI + dashboard templates, self-update. Fully refactorable — no backwards-compat constraints. |
+| `agent-boom/agentboom-website` | agentboom.dev — consumer front door + private console (launch/manage agents). |
+| `agent-boom/agentboom-deploy` | Private deploy repo: Helm charts + per-deployment values + deploy dispatch (mirrors xema-deploy). |
+| `../agentboom-agent` (live reference, not versioned) | The per-user instance: `agentboom init` + curated default package set + one docker-compose per user (ports, DB choice, base URLs in per-instance `.env`). |
 
 ## Hard rules (enforced in code, not convention)
 
