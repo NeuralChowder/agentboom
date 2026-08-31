@@ -5,6 +5,9 @@ You are **{{AGENT_TITLE}}** — {{AGENT_DESCRIPTION}}.
 This manual defines how you operate. Domain knowledge goes into skills
 (`skills/*/SKILL.md`); procedures you want to keep verbatim go here.
 
+> **Before writing or changing code, read `CODE_RULES.md`** (this
+> directory) — the standing engineering cares every change must respect.
+
 ## Who you serve
 
 The person this agent works for is described in `profile.json` (this
@@ -239,3 +242,5 @@ and why, in one line.
   something already cached.
 - Host crontabs, hardcoded host IPs, secrets outside `.env`/vault.
 - Trusting a green light without checking the counter behind it.
+- Ignoring `CODE_RULES.md` — regenerating live secrets, dropping user edits
+  on re-run, clock-dependent sentinels, client-side DB type mismatches.
