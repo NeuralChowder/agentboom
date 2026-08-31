@@ -202,6 +202,27 @@ never bothers a DE user) without forking the registry layout. Implemented in
   Telegram: the telegram-setup skill walks every step (@BotFather, token,
   allowed users) and finishes the wiring itself.
 
+## 13. Platform-owner ops, user rights, agent freedom
+
+- **Owner analytics (aggregated, privacy-safe).** The control plane records
+  *operational* metrics per tenant — signup date, plan, active days, jobs run,
+  tokens by tier/category, disk usage, health — never message content or
+  personal data. Inspired by adjudica's admin view, adapted: counts and
+  activity, not content.
+- **Account & data deletion (user-only, website-only).** A button in the
+  console callable ONLY by the authenticated user (server-side authz, CSRF
+  protection, re-auth + typed confirmation). The agent and admin paths cannot
+  trigger it. Deletion cancels billing, then purges the tenant namespace,
+  PVCs, secrets-api scope and realm user, leaving a tombstone to avoid
+  re-create collisions. Irreversible.
+- **Agent freedom.** Perimeter security (public boundary, vault, isolation)
+  must not clip in-container evolution: installing MCPs/skills/sub-agents/
+  packages and mutating the per-user constitution stay allowed. Inside its
+  container the agent is the user's — detection over prevention (§9.6).
+- **Persistent but secure.** Per-user PVC for data; code under internal git;
+  credentials in secrets-api (envelope-encrypted); encryption at rest; backups
+  of the data volume only — never plaintext secrets.
+
 ## Open questions (need user decisions)
 
 - Final names (agentboom-sdk / agentboom OS / console).
