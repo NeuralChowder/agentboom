@@ -20,6 +20,7 @@ from agentboom.commands.setup import (
     ENV_LLM_MODEL,
     QWEN_SETTINGS,
     build_settings_dict,
+    compose_env,
     fill_env_text,
     generate_env,
     parse_env,
@@ -119,6 +120,34 @@ class FillEnvTextTests(unittest.TestCase):
         self.assertIn("PORT_AGENT=4170", new)
 
 
+class ComposeEnvTests(unittest.TestCase):
+    def test_no_existing_uses_example(self):
+        new, filled = compose_env(_EXAMPLE_ENV, "", {"model": "m"})
+        parsed = parse_env(new)
+        self.assertEqual(parsed["LLM_MODEL"], "m")
+        self.assertTrue(_HEX32.match(parsed["QWEN_SERVER_TOKEN"]))
+
+    def test_preserves_user_lines_and_comments(self):
+        existing = (
+            "# my note\n"
+            "QWEN_SERVER_TOKEN=" + "a" * 64 + "\n"
+            "MY_CUSTOM=keep\n"
+        )
+        new, _ = compose_env(_EXAMPLE_ENV, existing, {})
+        self.assertIn("MY_CUSTOM=keep", new)
+        self.assertIn("# my note", new)
+        self.assertEqual(parse_env(new)["QWEN_SERVER_TOKEN"], "a" * 64)
+
+    def test_appends_missing_template_keys(self):
+        # existing lacks most template keys; they are appended, not lost.
+        existing = "QWEN_SERVER_TOKEN=" + "b" * 64 + "\n"
+        new, _ = compose_env(_EXAMPLE_ENV, existing, {})
+        parsed = parse_env(new)
+        self.assertEqual(parsed["QWEN_SERVER_TOKEN"], "b" * 64)
+        self.assertEqual(parsed["PORT_AGENT"], "4170")  # appended default
+        self.assertTrue(_HEX32.match(parsed["PLATFORM_TOKEN"]))  # appended+generated
+
+
 class BuildSettingsTests(unittest.TestCase):
     def test_wires_provider_model_and_env_key(self):
         s = build_settings_dict(
@@ -151,6 +180,30 @@ class BuildSettingsTests(unittest.TestCase):
         self.assertEqual(s["model"]["name"], "keepm")
         self.assertEqual(s["model"]["baseUrl"], "http://keep:4000/v1")
         self.assertEqual(s["env"], {"AGENT_LLM_API_KEY": "keepkey"})
+
+    def test_full_existing_settings_survive_rerun(self):
+        existing = {
+            "tools": {"approvalMode": "yolo"},
+            "model": {"name": "old", "baseUrl": "http://old:1/v1",
+                      "fastModel": "fast"},
+            "modelProviders": {"openai": [
+                {"id": "old", "name": "old", "baseUrl": "http://old:1/v1",
+                 "envKey": "AGENT_LLM_API_KEY"},
+                {"id": "second", "name": "second"},
+            ]},
+            "env": {"AGENT_LLM_API_KEY": "oldkey", "EXTRA": "1"},
+            "mcpServers": {"puppeteer": {"command": "x"}},
+        }
+        s = build_settings_dict(_EXAMPLE_SETTINGS, {"model": "newtag"},
+                                existing=existing)
+        # the managed provider is rewired to the fresh answer…
+        self.assertEqual(s["model"]["name"], "newtag")
+        self.assertEqual(s["modelProviders"]["openai"][0]["id"], "newtag")
+        # …but user customisation beyond it survives.
+        self.assertEqual(s["model"]["fastModel"], "fast")
+        self.assertEqual(s["modelProviders"]["openai"][1]["id"], "second")
+        self.assertEqual(s["env"]["EXTRA"], "1")
+        self.assertEqual(s["mcpServers"]["puppeteer"], {"command": "x"})
 
 
 class SetupIOTests(AgentTestCase):

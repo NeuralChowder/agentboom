@@ -23,12 +23,14 @@ Design notes
   untouched, so re-running `setup` after installing packages never
   regenerates existing tokens — it only fills the new gaps.
 """
+import getpass
 import json
 import os
 import re
 import secrets as _secrets
+import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from agentboom.registry import REGISTRY_NAME, load_registry
 
@@ -45,12 +47,16 @@ ENV_LLM_API_KEY = "AGENT_LLM_API_KEY"
 ENV_LLM_MODEL = "AGENT_LLM_MODEL"
 ENV_TIMEZONE = "AGENT_TIMEZONE"
 
+def _hex32() -> str:
+    """64 hex chars = 32 bytes (the vault mini-app requires exactly 32)."""
+    return _secrets.token_hex(32)
+
+
 # Env keys we know how to auto-generate, mapped to a generator.
-_HEX32 = lambda: _secrets.token_hex(32)          # 64 hex chars = 32 bytes
 SECRET_GENERATORS = {
-    "QWEN_SERVER_TOKEN": _HEX32,
-    "PLATFORM_TOKEN": _HEX32,
-    "VAULT_KEY": _HEX32,            # vault mini-app requires exactly 32 bytes
+    "QWEN_SERVER_TOKEN": _hex32,
+    "PLATFORM_TOKEN": _hex32,
+    "VAULT_KEY": _hex32,
     "PLATFORM_ADMIN_PASSWORD": lambda: _secrets.token_urlsafe(12),
 }
 
@@ -106,50 +112,111 @@ def fill_env_text(example_text: str, existing: dict, llm: dict) -> Tuple[str, Li
             continue
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip()
-        # Only ever touch empty template values (e.g. PORT_AGENT=4170 is kept).
-        if value != "" or not _KEY_RE.match(key):
+        if not _KEY_RE.match(key):
             continue
 
         before = existing.get(key, "")
         if key in SECRET_GENERATORS:
-            # Carry the existing secret into the output; generate only when
-            # absent. Never regenerate one that is already set.
+            # Never touch a secret that is already set; generate only when
+            # the line is empty, carrying over any known value.
+            if value != "":
+                continue
             written = before or SECRET_GENERATORS[key]()
             lines[i] = f"{key}={written}"
             if before == "":
                 filled.append(key)  # newly generated
         elif key in llm_values:
-            # LLM config is not a secret: a fresh answer wins, else keep what
-            # is already in .env (re-running without new flags must not
-            # clobber a working setup).
-            if llm_values[key]:
-                written = llm_values[key]
-            elif before:
+            # LLM config is not a secret: a fresh answer wins over the old
+            # value; otherwise an empty template line carries the .env value;
+            # anything else is left alone (re-running must not clobber it).
+            fresh = llm_values[key]
+            if fresh:
+                written = fresh
+            elif value == "" and before:
                 written = before
             else:
-                continue  # nothing known for this key — leave it empty
-            lines[i] = f"{key}={written}"
+                continue
+            if written != value:
+                lines[i] = f"{key}={written}"
             if written != before:
                 filled.append(key)  # value actually changed
+        # Unknown or default-valued keys (e.g. PORT_AGENT=4170) are kept
+        # byte-for-byte.
     return "\n".join(lines), filled
 
 
+def _key_value_lines(text: str) -> List[Tuple[str, str]]:
+    """(key, value) for each settable `KEY=...` line, in order."""
+    out: List[Tuple[str, str]] = []
+    for line in text.split("\n"):
+        s = line.strip()
+        if not s or s.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+        if _KEY_RE.match(key):
+            out.append((key, value))
+    return out
+
+
+def compose_env(example_text: str, existing_text: str, llm: dict) -> Tuple[str, List[str]]:
+    """Compose the new `.env` text without dropping user-added lines.
+
+    Starts from the existing file (so manual additions and comments survive
+    re-runs) and appends any template keys that are missing — new keys
+    introduced by package installs. With no existing file the example is the
+    base. The merged text then goes through `fill_env_text`.
+    """
+    if not existing_text.strip():
+        return fill_env_text(example_text, {}, llm)
+
+    have = {key for key, _ in _key_value_lines(existing_text)}
+    additions = [f"{key}={value}"
+                 for key, value in _key_value_lines(example_text)
+                 if key not in have]
+    text = existing_text
+    if not text.endswith("\n"):
+        text += "\n"
+    if additions:
+        text += "\n".join(additions) + "\n"
+    return fill_env_text(text, parse_env(existing_text), llm)
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Merge `override` onto `base` in place (override wins, dicts recurse)."""
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
 def build_settings_dict(example: dict, llm: dict,
-                        existing_model: dict = None,
-                        existing_env: dict = None) -> dict:
+                        existing_model: Optional[dict] = None,
+                        existing_env: Optional[dict] = None,
+                        existing: Optional[dict] = None) -> dict:
     """Produce a ready `settings.json` from the example + the LLM answer.
 
     Reuses the example's structure (tools, permissions, mcpServers,
     generationConfig) and wires the first `openai` provider to the user's
     endpoint + model, with the API key carried in `env` under a stable
-    envKey. A value the caller did not provide is preserved from
-    `existing_model` / `existing_env` (so re-running without new flags does
-    not clobber a working setup); only when nothing is known is a clear
-    placeholder written, keeping the file valid and the gap obvious.
+    envKey.
+
+    When `existing` (the current settings.json) is supplied it is used as the
+    base, so any user customisation beyond the example (extra providers,
+    `fastModel`, extra `env` keys, mcpServers tweaks) survives a re-run. A
+    value the caller did not provide is preserved from `existing_model` /
+    `existing_env`; only when nothing is known is a clear placeholder
+    written, keeping the file valid and the gap obvious.
     """
     existing_model = existing_model or {}
     existing_env = existing_env or {}
     settings = json.loads(json.dumps(example))
+    if existing:
+        existing_model = existing_model or (existing.get("model") or {})
+        existing_env = existing_env or (existing.get("env") or {})
+        settings = _deep_merge(settings, json.loads(json.dumps(existing)))
     settings.pop("$comment", None)
 
     model_name = ((llm.get("model") or "").strip()
@@ -175,7 +242,13 @@ def build_settings_dict(example: dict, llm: dict,
     model["name"] = model_name
     model["baseUrl"] = base_url
 
-    settings["env"] = {_SETTINGS_ENV_KEY: api_key}
+    # Merge, not replace: keep any other env keys the user already has.
+    env = settings.get("env")
+    if not isinstance(env, dict):
+        env = {}
+    env.update(existing_env)
+    env[_SETTINGS_ENV_KEY] = api_key
+    settings["env"] = env
     return settings
 
 
@@ -193,7 +266,7 @@ def detect_timezone() -> str:
     try:
         path = Path("/etc/localtime")
         if path.is_symlink():
-            target = os.readlink(path)  # e.g. /usr/share/zoneinfo/Europe/Lisbon
+            target = os.readlink(path)  # e.g. /usr/share/zoneinfo/America/New_York
             marker = "/zoneinfo/"
             if marker in target:
                 return target.split(marker, 1)[1]
@@ -204,7 +277,6 @@ def detect_timezone() -> str:
                 return tz
     except OSError:
         pass
-    import time
     abbr = time.tzname[0]
     if abbr and abbr not in ("UTC", "GMT", ""):
         return abbr
@@ -220,9 +292,9 @@ def _write_env(agent_dir: Path, llm: dict) -> Tuple[List[str], bool]:
     example_path = agent_dir / ".env.example"
     if not example_path.is_file():
         raise SetupError(f"no .env.example in {agent_dir} (is this an agent?)")
-    existing = parse_env(env_path.read_text(encoding="utf-8")) if env_path.is_file() else {}
-    new_text, filled = fill_env_text(example_path.read_text(encoding="utf-8"),
-                                     existing, llm)
+    example_text = example_path.read_text(encoding="utf-8")
+    existing_text = env_path.read_text(encoding="utf-8") if env_path.is_file() else ""
+    new_text, filled = compose_env(example_text, existing_text, llm)
     env_path.write_text(new_text, encoding="utf-8")
     _chmod_600(env_path)
     return filled, bool(filled)
@@ -237,17 +309,16 @@ def _write_settings(agent_dir: Path, llm: dict) -> bool:
         return False
     example = json.loads(example_path.read_text(encoding="utf-8"))
 
-    existing_model: dict = {}
-    existing_env: dict = {}
+    current: Optional[dict] = None
     if dest.is_file():
         try:
-            current = json.loads(dest.read_text(encoding="utf-8"))
-            existing_model = current.get("model", {}) or {}
-            existing_env = current.get("env", {}) or {}
+            loaded = json.loads(dest.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                current = loaded
         except (json.JSONDecodeError, OSError):
-            pass
+            current = None
 
-    settings = build_settings_dict(example, llm, existing_model, existing_env)
+    settings = build_settings_dict(example, llm, existing=current)
     dest.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8")
     _chmod_600(dest)
@@ -308,10 +379,11 @@ def generate_env(agent_dir: Path, llm: dict) -> dict:
 
 
 def _ask(question: str, default: str = "") -> str:
+    # EOFError (piped/exhausted stdin) accepts the default; Ctrl-C aborts.
     suffix = f" [{default}]" if default else ""
     try:
         return input(f"{question}{suffix}: ").strip() or default
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         return default
 
 
@@ -319,9 +391,8 @@ def _ask_secret(question: str, default: str = "") -> str:
     """Read a secret without echoing it (getpass), falling back to input()."""
     prompt = question + (f" [{default}]" if default else "") + ": "
     try:
-        import getpass
         return getpass.getpass(prompt).strip() or default
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         return default
     except Exception:  # not a tty / getpass unavailable — degrade gracefully
         return _ask(question, default)

@@ -137,14 +137,6 @@ def run(args) -> dict:
     save_registry(target, registry)
     fleet_reg.register_best_effort(target)
 
-    next_steps = [
-        f"cd {target}",
-        "cp .env.example .env   # fill in the required secrets",
-        "docker compose up --build -d",
-        "docker compose logs -f qwen-agent",
-        "# Read .qwen-docker/AGENTS.md — it is the agent's operating manual.",
-    ]
-
     env_result = None
     if getattr(args, "generate_env", False):
         llm = {
@@ -153,12 +145,15 @@ def run(args) -> dict:
             "model": (getattr(args, "llm_model", None) or "").strip(),
         }
         env_result = setup_cmd.generate_env(target, llm)
-        next_steps = [
-            f"cd {target}",
-            "docker compose up --build -d",
-            "docker compose logs -f qwen-agent",
-            "# Read .qwen-docker/AGENTS.md — it is the agent's operating manual.",
-        ]
+
+    next_steps = [f"cd {target}"]
+    if env_result is None:
+        next_steps.append("cp .env.example .env   # fill in the required secrets")
+    next_steps += [
+        "docker compose up --build -d",
+        "docker compose logs -f qwen-agent",
+        "# Read .qwen-docker/AGENTS.md — it is the agent's operating manual.",
+    ]
 
     return {
         "ok": True,

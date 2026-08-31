@@ -125,8 +125,15 @@ Committed in this repo (see `git log`):
   (model provider wired, 0600 perms). Idempotent: tokens are never
   regenerated, an existing working setup is preserved, only a fresh LLM answer
   overwrites model config. No secret value ever appears in the JSON payload
-  (key names only). 21 tests. Full suite 332/332. Also fixed a LAN-IP leak in
-  docs/plan.md.
+  (key names only). 25 tests. Also fixed a LAN-IP leak in docs/plan.md.
+  Hardening pass: re-runs are merge-based and never drop user edits —
+  `.env` is composed from the existing file (manual lines/comments survive,
+  new template keys appended) and `settings.json` uses the current file as
+  the base (extra providers / `fastModel` / extra `env` keys survive).
+- **Release 0.8.0** — published (agentboom + agentboom_sdk wheels). Followed
+  by `fix(deploy)`: `stop_grace_period: 60s` on `endpoint-platform` backported
+  to the platform template + agentboom-agent (stops were SIGKILL/137).
+  Full suite 337/337, selfcheck PASS.
 
 ## Queue (FIFO, parallel agents)
 
@@ -134,29 +141,26 @@ None — all queued packages are complete. Next steps below.
 
 ## Remaining
 
-1. **Release 0.8.0** — lockstep version bump (pyproject, sdk pyproject,
-   ui + dashboard + sdk-ts package.json), release notes, docs sync, full
-   suite green.
-2. **agentboom-agent scaffold** — create the per-user instance repo via
+1. **agentboom-agent scaffold** — create the per-user instance repo via
    `agentboom init` + lean default package set (brain, knowledge, storage,
    vault, settings, contacts, calendar, reminders, events, email suite,
    digests, movienight, mfa-relay, self-evolve, telegram, ntfy, rich-link,
    continente) + compose; zero personal data. (init/validate/npm-build
    already verified in a /tmp scaffold.)
-3. **Onboarding final pass** in the real agentboom-agent: Commando ✓,
+2. **Onboarding final pass** in the real agentboom-agent: Commando ✓,
    telegram-setup skill ✓, agent-UI link ✓, mobile ✓, **technical setup
    onboarding ✓** (`agentboom setup` wizard + `init --generate-env`, with a
    non-interactive mode for scripts). Remaining: the in-agent first-run flow
    (join telegram + explain self-evolve, simple not strict).
-4. **port-platform + edu-bot-cleanup** — BLOCKED on the other agent's
+3. **port-platform + edu-bot-cleanup** — BLOCKED on the other agent's
    feed-hub cutover in edu-bot (worktree dirty; migrations untracked).
    When free: one-way edu-bot → agentboom-agent migration snapshot from
    the **working tree**, digestos final state, empty-states, then
    de-hardcode edu-bot in place (env-ify assistant name, timezones, base
    URLs, channel name — no behavior change, no data loss).
-5. **Handoff** — next-agent docs + skills in both repos (this file,
+4. **Handoff** — next-agent docs + skills in both repos (this file,
    the ops lessons below, per-package READMEs).
-6. **Final verification** — full suite, `docker compose config`, zero-leak
+5. **Final verification** — full suite, `docker compose config`, zero-leak
    grep across both repos, dual-DB smoke, edu-bot still healthy (its
    containers keep running), and the MCP list delivered to the user
    (postgres-mcp, web-search `<mcp-host>:3115/mcp`,
