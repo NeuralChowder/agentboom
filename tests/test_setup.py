@@ -9,6 +9,8 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -322,6 +324,25 @@ class InitGenerateEnvTests(unittest.TestCase):
         self.assertFalse((target / ".env").is_file())
         self.assertTrue((target / ".env.example").is_file())
         self.assertTrue(any(".env.example" in s for s in result["next_steps"]))
+
+    @unittest.skipIf(shutil.which("git") is None, "git not available")
+    def test_init_creates_internal_git_excluding_secrets(self):
+        target = self._tmp / "gitted"
+        result = init_cmd.run(argparse.Namespace(
+            dir=str(target), name="gitted", description="",
+            port_agent=4170, port_platform=8000, force=False,
+            generate_env=True,
+            llm_url="http://u:4000/v1", llm_key="not-needed", llm_model="m",
+        ))
+        self.assertTrue(result["internal_git"])
+        self.assertTrue((target / ".git").is_dir())
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=target, capture_output=True, text=True
+        ).stdout.split()
+        # code is tracked; secrets and user data are not
+        self.assertTrue(any(f.endswith("docker-compose.yml") for f in tracked))
+        self.assertNotIn(".env", tracked)
+        self.assertNotIn(".qwen-docker/settings.json", tracked)
 
 
 if __name__ == "__main__":

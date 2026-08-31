@@ -1,5 +1,8 @@
 """`agentboom init` — scaffold a new agent project from the base template."""
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 from agentboom import __version__
@@ -32,6 +35,34 @@ class InitError(RuntimeError):
 
 def _kebab_to_title(name: str) -> str:
     return " ".join(part.capitalize() for part in name.split("-") if part)
+
+
+def _init_internal_git(target: Path) -> bool:
+    """Best-effort: make the agent a local git repo (no remote).
+
+    The self-evolve loop commits each verified change, giving a recovery
+    point; because `.gitignore` excludes user data and secrets, recovering
+    code never touches data. Never fatal — a missing git or a failure just
+    means no internal history yet.
+    """
+    if (target / ".git").exists() or shutil.which("git") is None:
+        return False
+    env = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1"}
+
+    def run(*args: str) -> int:
+        return subprocess.run(["git", *args], cwd=target, env=env,
+                              capture_output=True).returncode
+
+    try:
+        if run("init", "-b", "main") != 0 and run("init") != 0:
+            return False
+        run("add", "-A")
+        run("-c", "user.name=agentboom", "-c",
+            "user.email=agent@agentboom.local", "commit",
+            "-m", "agentboom init: baseline")
+        return True
+    except OSError:
+        return False
 
 
 def run(args) -> dict:
@@ -136,6 +167,7 @@ def run(args) -> dict:
     }
     save_registry(target, registry)
     fleet_reg.register_best_effort(target)
+    internal_git = _init_internal_git(target)
 
     env_result = None
     if getattr(args, "generate_env", False):
@@ -164,6 +196,7 @@ def run(args) -> dict:
         "created": sorted(created),
         "skipped_existing": sorted(skipped),
         "managed_count": len(managed),
+        "internal_git": internal_git,
         "env_generated": env_result is not None,
         "env_keys_set": (env_result or {}).get("env_keys_set", []),
         "settings_generated": (env_result or {}).get("settings_written", False),
